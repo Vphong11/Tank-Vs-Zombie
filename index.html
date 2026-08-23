@@ -2,7 +2,8 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>2D Tank vs Zombies - Web Version</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>2D Tank vs Zombies - Mobile Version</title>
     <style>
         body {
             margin: 0;
@@ -16,6 +17,7 @@
             align-items: center;
             justify-content: center;
             height: 100vh;
+            touch-action: none;
         }
         canvas {
             background-color: #14141c;
@@ -23,6 +25,8 @@
             border: 3px solid #333345;
             box-shadow: 0 0 30px rgba(0,0,0,0.8);
             border-radius: 8px;
+            max-width: 100%;
+            max-height: 100vh;
         }
     </style>
 </head>
@@ -54,6 +58,11 @@
     let bossSpawnedInWave = false;
     let gameState = "MENU"; 
     let currentChoices = [];
+
+    // Touch & Control variables
+    let joystick = { active: false, id: null, x: 120, y: 520, curX: 120, curY: 520, rad: 50 };
+    let fireButton = { active: false, id: null, x: WIDTH - 120, y: 520, rad: 45 };
+    let mobileAimAngle = 0;
 
     let bgDecorations = [];
     for (let i = 0; i < 35; i++) {
@@ -198,7 +207,7 @@
 
         draw() {
             let px = Math.floor(this.x), py = Math.floor(this.y);
-            let gunAngle = Math.atan2(mouse.y - py, mouse.x - px);
+            let gunAngle = mobileAimAngle;
 
             ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
             ctx.beginPath(); ctx.ellipse(px, py, 30, 25, 0, 0, Math.PI * 2); ctx.fill();
@@ -225,17 +234,18 @@
             ctx.fillRect(this.x - 22, this.y - 53, hpWidth, 4);
         }
 
-        move(keys) {
-            let dx = 0, dy = 0;
-            if (keys['w'] && this.y > 30) dy -= 1;
-            if (keys['s'] && this.y < HEIGHT - 30) dy += 1;
-            if (keys['a'] && this.x > 30) dx -= 1;
-            if (keys['d'] && this.x < WIDTH - 30) dx += 1;
-
-            if (dx !== 0 || dy !== 0) {
-                let len = Math.hypot(dx, dy);
-                this.x += (dx / len) * this.speed;
-                this.y += (dy / len) * this.speed;
+        move() {
+            if (joystick.active) {
+                let dx = joystick.curX - joystick.x;
+                let dy = joystick.curY - joystick.y;
+                let dist = Math.hypot(dx, dy);
+                if (dist > 5) {
+                    let moveX = (dx / dist) * this.speed;
+                    let moveY = (dy / dist) * this.speed;
+                    this.x = Math.max(30, Math.min(WIDTH - 30, this.x + moveX));
+                    this.y = Math.max(30, Math.min(HEIGHT - 30, this.y + moveY));
+                    mobileAimAngle = Math.atan2(dy, dx);
+                }
             }
         }
 
@@ -384,18 +394,86 @@
 
     let player = new TankPlayer();
     let bullets = [], zombies = [], explosions = [], coins = [];
-    let keys = {};
-    let mouse = { x: 0, y: 0, pressed: false };
 
-    window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
-    window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
-    canvas.addEventListener('mousemove', e => {
+    // Touch Event Handlers for Mobile Controls
+    function getCanvasCoords(e) {
         let rect = canvas.getBoundingClientRect();
-        mouse.x = e.clientX - rect.left;
-        mouse.y = e.clientY - rect.top;
+        let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return {
+            x: (clientX - rect.left) * (canvas.width / rect.width),
+            y: (clientY - rect.top) * (canvas.height / rect.height)
+        };
+    }
+
+    window.addEventListener('touchstart', e => {
+        for (let i = 0; i < e.changedTouches.length; i++) {
+            let touch = e.changedTouches[i];
+            let rect = canvas.getBoundingClientRect();
+            let tx = (touch.clientX - rect.left) * (canvas.width / rect.width);
+            let ty = (touch.clientY - rect.top) * (canvas.height / rect.height);
+
+            handleMenuClicks(tx, ty);
+
+            // Joystick check
+            if (gameState === "PLAYING" && Math.hypot(tx - joystick.x, ty - joystick.y) < 90) {
+                joystick.active = true;
+                joystick.id = touch.identifier;
+                joystick.curX = tx;
+                joystick.curY = ty;
+            }
+            // Fire button check
+            if (gameState === "PLAYING" && Math.hypot(tx - fireButton.x, ty - fireButton.y) < 65) {
+                fireButton.active = true;
+                fireButton.id = touch.identifier;
+            }
+        }
+    }, {passive: false});
+
+    window.addEventListener('touchmove', e => {
+        e.preventDefault();
+        for (let i = 0; i < e.changedTouches.length; i++) {
+            let touch = e.changedTouches[i];
+            if (joystick.active && touch.identifier === joystick.id) {
+                let rect = canvas.getBoundingClientRect();
+                let tx = (touch.clientX - rect.left) * (canvas.width / rect.width);
+                let ty = (touch.clientY - rect.top) * (canvas.height / rect.height);
+                let dx = tx - joystick.x;
+                let dy = ty - joystick.y;
+                let dist = Math.hypot(dx, dy);
+                if (dist > joystick.rad) {
+                    dx = (dx / dist) * joystick.rad;
+                    dy = (dy / dist) * joystick.rad;
+                }
+                joystick.curX = joystick.x + dx;
+                joystick.curY = joystick.y + dy;
+            }
+        }
+    }, {passive: false});
+
+    window.addEventListener('touchend', e => {
+        for (let i = 0; i < e.changedTouches.length; i++) {
+            let touch = e.changedTouches[i];
+            if (joystick.active && touch.identifier === joystick.id) {
+                joystick.active = false;
+                joystick.curX = joystick.x;
+                joystick.curY = joystick.y;
+            }
+            if (fireButton.active && touch.identifier === fireButton.id) {
+                fireButton.active = false;
+            }
+        }
     });
-    window.addEventListener('mousedown', () => mouse.pressed = true);
-    window.addEventListener('mouseup', () => mouse.pressed = false);
+
+    // Mouse fallback for PC testing
+    window.addEventListener('mousedown', e => {
+        let pos = getCanvasCoords(e);
+        handleMenuClicks(pos.x, pos.y);
+        if (gameState === "PLAYING") {
+            if (Math.hypot(pos.x - fireButton.x, pos.y - fireButton.y) < 65) fireButton.active = true;
+        }
+    });
+    window.addEventListener('mouseup', () => { fireButton.active = false; });
 
     function resetGame() {
         player.reset();
@@ -419,11 +497,7 @@
         else if (upgradeId === "maxhp") { player.maxHp *= 1.25; player.hp += player.maxHp * 0.25; }
     }
 
-    canvas.addEventListener('click', e => {
-        let rect = canvas.getBoundingClientRect();
-        let mx = e.clientX - rect.left;
-        let my = e.clientY - rect.top;
-
+    function handleMenuClicks(mx, my) {
         if (gameState === "MENU") {
             if (mx >= WIDTH/2 - 110 && mx <= WIDTH/2 + 110 && my >= HEIGHT/2 + 20 && my <= HEIGHT/2 + 68) resetGame();
             else if (mx >= WIDTH/2 - 110 && mx <= WIDTH/2 + 110 && my >= HEIGHT/2 + 80 && my <= HEIGHT/2 + 128) gameState = "SHOP";
@@ -431,16 +505,13 @@
             if (mx >= WIDTH/2 - 110 && mx <= WIDTH/2 + 110 && my >= HEIGHT - 55 && my <= HEIGHT - 15) {
                 gameState = "MENU";
             }
-            
             let colWidth = 420, rowHeight = 50;
             let startX1 = WIDTH/2 - 430, startX2 = WIDTH/2 + 10, startY = 90;
-
             let itemsList = [
                 {id: "maxhp", base: 50}, {id: "dmg", base: 70}, {id: "spd", base: 60},
                 {id: "multishot", base: 120}, {id: "pierce", base: 90}, {id: "rate", base: 80},
                 {id: "vampire", base: 150}, {id: "explosive", base: 200}, {id: "nova", base: 250}
             ];
-
             itemsList.forEach((item, i) => {
                 let c = i < 5 ? 0 : 1;
                 let r = c === 0 ? i : i - 5;
@@ -473,16 +544,16 @@
                 gameState = "MENU";
             }
         }
-    });
+    }
 
     function gameLoop() {
         let now = Date.now();
 
         if (gameState === "PLAYING") {
-            player.move(keys);
+            player.move();
 
-            if (mouse.pressed && now - player.lastShot > player.fireRate) {
-                let baseAngle = Math.atan2(mouse.y - player.y, mouse.x - player.x);
+            if (fireButton.active && now - player.lastShot > player.fireRate) {
+                let baseAngle = mobileAimAngle;
                 let spread = 0.15, numB = player.bulletCount;
                 let startAngle = baseAngle - (spread * (numB - 1) / 2);
                 for (let i = 0; i < numB; i++) {
@@ -626,14 +697,12 @@
                 let by = startY + r * rowHeight;
                 if (i === 8) { bx = WIDTH/2 - colWidth/2; by = startY + 5 * rowHeight; }
 
-                let isHover = mouse.x >= bx && mouse.x <= bx + colWidth && mouse.y >= by && mouse.y <= by + 44;
-
-                ctx.fillStyle = isHover ? "rgb(60, 65, 95)" : "rgb(32, 32, 48)"; 
+                ctx.fillStyle = "rgb(32, 32, 48)"; 
                 ctx.fillRect(bx, by, colWidth, 44);
-                ctx.strokeStyle = isHover ? "rgb(255, 210, 60)" : "rgb(85, 85, 110)"; 
+                ctx.strokeStyle = "rgb(85, 85, 110)"; 
                 ctx.lineWidth = 2; ctx.strokeRect(bx, by, colWidth, 44);
 
-                drawSuperPolishedIcon(bx + 8, by + 1, item.id, isHover);
+                drawSuperPolishedIcon(bx + 8, by + 1, item.id, false);
 
                 let lvl = shopUpgrades[item.id];
                 ctx.fillStyle = "white"; ctx.font = "bold 16px Segoe UI"; ctx.textAlign = "left";
@@ -656,6 +725,24 @@
             bullets.forEach(b => b.draw());
             zombies.forEach(z => z.draw(player.x, player.y));
             explosions.forEach(e => e.draw());
+
+            // Draw Mobile Controls UI
+            ctx.save();
+            ctx.fillStyle = "rgba(255, 255, 255, 0.1)";
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.3)";
+            ctx.lineWidth = 3;
+            // Joystick Base
+            ctx.beginPath(); ctx.arc(joystick.x, joystick.y, joystick.rad, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+            // Joystick Knob
+            ctx.fillStyle = "rgba(45, 240, 120, 0.5)";
+            ctx.beginPath(); ctx.arc(joystick.curX, joystick.curY, 25, 0, Math.PI * 2); ctx.fill();
+
+            // Fire Button
+            ctx.fillStyle = fireButton.active ? "rgba(255, 60, 60, 0.6)" : "rgba(255, 60, 60, 0.3)";
+            ctx.beginPath(); ctx.arc(fireButton.x, fireButton.y, fireButton.rad, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = "white"; ctx.font = "bold 16px Segoe UI"; ctx.textAlign = "center";
+            ctx.fillText("BẮN", fireButton.x, fireButton.y + 6);
+            ctx.restore();
 
             ctx.fillStyle = "white"; ctx.font = "bold 16px Segoe UI"; ctx.textAlign = "left";
             ctx.fillText(`Cấp: ${player.level}`, 20, 30);
@@ -689,14 +776,12 @@
 
             currentChoices.forEach((choice, i) => {
                 let bx = WIDTH/2 - 200, by = 180 + i * 85;
-                let isHover = mouse.x >= bx && mouse.x <= bx + 400 && mouse.y >= by && mouse.y <= by + 65;
-                
-                ctx.fillStyle = isHover ? "rgb(60, 65, 92)" : "rgb(32, 32, 45)"; 
+                ctx.fillStyle = "rgb(32, 32, 45)"; 
                 ctx.fillRect(bx, by, 400, 65);
-                ctx.strokeStyle = isHover ? "rgb(255, 210, 60)" : "rgb(85, 85, 110)"; 
+                ctx.strokeStyle = "rgb(85, 85, 110)"; 
                 ctx.lineWidth = 2; ctx.strokeRect(bx, by, 400, 65);
                 
-                drawSuperPolishedIcon(bx + 12, by + 11, choice.id, isHover);
+                drawSuperPolishedIcon(bx + 12, by + 11, choice.id, false);
 
                 ctx.fillStyle = "white"; ctx.font = "bold 18px Segoe UI"; ctx.textAlign = "left";
                 ctx.fillText(choice.text, bx + 68, by + 38);
@@ -708,12 +793,10 @@
             ctx.fillStyle = "rgb(255, 60, 60)"; ctx.font = "bold 52px Segoe UI"; ctx.textAlign = "center";
             ctx.fillText("THẤT BẠI", WIDTH/2, HEIGHT/2 - 70);
 
-            // Nút Chơi Lại
             ctx.fillStyle = "rgb(255, 60, 60)"; ctx.fillRect(WIDTH/2 - 110, HEIGHT/2 + 10, 220, 48);
             ctx.fillStyle = "white"; ctx.font = "bold 16px Segoe UI"; ctx.textAlign = "center";
             ctx.fillText("CHƠI LẠI", WIDTH/2, HEIGHT/2 + 40);
 
-            // Nút Về Menu Chính (Đã thêm căn giữa chính xác)
             ctx.fillStyle = "rgb(55, 55, 70)"; ctx.fillRect(WIDTH/2 - 110, HEIGHT/2 + 70, 220, 48);
             ctx.fillStyle = "white"; ctx.font = "bold 16px Segoe UI"; ctx.textAlign = "center";
             ctx.fillText("VỀ MENU CHÍNH", WIDTH/2, HEIGHT/2 + 100);
