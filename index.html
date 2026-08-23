@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>2D Tank vs Zombies - Responsive Version</title>
+    <title>2D Tank vs Zombies - Secured Admin</title>
     <style>
         * {
             box-sizing: border-box;
@@ -55,10 +55,8 @@
     function resizeGame() {
         let windowWidth = window.innerWidth;
         let windowHeight = window.innerHeight;
-        
         let gameWidth = 900;
         let gameHeight = 650;
-        
         let scale = Math.min(windowWidth / gameWidth, windowHeight / gameHeight);
         
         canvas.style.width = (gameWidth * scale) + "px";
@@ -69,29 +67,48 @@
     window.addEventListener('orientationchange', resizeGame);
     setTimeout(resizeGame, 50);
 
-    let playerGold = parseInt(localStorage.getItem('tank_gold')) || 500;
-    let shopUpgrades = JSON.parse(localStorage.getItem('tank_upgrades')) || {
+    // Mật khẩu bảo vệ Admin (Bạn có thể sửa chữ "admin123" thành mật khẩu tùy ý)
+    const ADMIN_SECRET_PASSWORD = "admin123";
+
+    // Khởi tạo thông số người chơi
+    let playerGold = 500;
+    let shopUpgrades = {
         "maxhp": 0, "dmg": 0, "spd": 0,
         "multishot": 0, "pierce": 0, "rate": 0,
         "vampire": 0, "explosive": 0, "nova": 0
     };
 
-    // Bảng giới hạn cấp độ tối đa cho từng kỹ năng
+    if (localStorage.getItem('tank_gold') !== null) {
+        playerGold = parseInt(localStorage.getItem('tank_gold')) || 500;
+    }
+    if (localStorage.getItem('tank_upgrades') !== null) {
+        try {
+            shopUpgrades = JSON.parse(localStorage.getItem('tank_upgrades'));
+        } catch(e) {}
+    }
+
     const maxUpgradeLevels = {
-        "maxhp": 5,
-        "dmg": 3,
-        "spd": 5,
-        "multishot": 2,
-        "pierce": 4,
-        "rate": 4,
-        "vampire": 2,
-        "explosive": 1,
-        "nova": 3
+        "maxhp": 5, "dmg": 3, "spd": 5,
+        "multishot": 2, "pierce": 4, "rate": 4,
+        "vampire": 2, "explosive": 1, "nova": 3
     };
 
     function saveGame() {
         localStorage.setItem('tank_gold', playerGold);
         localStorage.setItem('tank_upgrades', JSON.stringify(shopUpgrades));
+    }
+
+    function clearAllData() {
+        localStorage.removeItem('tank_gold');
+        localStorage.removeItem('tank_upgrades');
+        playerGold = 500;
+        shopUpgrades = {
+            "maxhp": 0, "dmg": 0, "spd": 0,
+            "multishot": 0, "pierce": 0, "rate": 0,
+            "vampire": 0, "explosive": 0, "nova": 0
+        };
+        saveGame();
+        player.reset();
     }
 
     const WIDTH = 900, HEIGHT = 650;
@@ -100,7 +117,7 @@
     let zombiesSpawnedCount = 0;
     let spawnTimer = 0;
     let bossSpawnedInWave = false;
-    let gameState = "MENU"; 
+    let gameState = "MENU"; // MENU, PLAYING, SHOP, ADMIN, LEVEL_UP, GAME_OVER
     let currentChoices = [];
 
     const btnDpadUp = { x: 100, y: HEIGHT - 140, r: 42, active: false };
@@ -152,10 +169,8 @@
 
         ctx.fillStyle = "rgb(8, 8, 12)";
         ctx.beginPath(); ctx.roundRect(nx + 2, ny + 4, size, size, 10); ctx.fill();
-
         ctx.fillStyle = isHovered ? "rgb(48, 52, 75)" : "rgb(28, 30, 42)";
         ctx.beginPath(); ctx.roundRect(nx, ny, size, size, 10); ctx.fill();
-
         ctx.strokeStyle = isHovered ? "rgb(255, 210, 60)" : "rgb(110, 115, 140)";
         ctx.lineWidth = 2;
         ctx.beginPath(); ctx.roundRect(nx, ny, size, size, 10); ctx.stroke();
@@ -241,7 +256,7 @@
             let prevMax = this.maxHp;
             this.maxHp = 120 + (shopUpgrades["maxhp"] * 30);
             this.hp += (this.maxHp - prevMax);
-            this.damage = 30 + (shopUpgrades["dmg"] * 10); // Mỗi cấp cộng thêm 10 sát thương
+            this.damage = 30 + (shopUpgrades["dmg"] * 10);
             this.fireRate = Math.max(60, 300 - (shopUpgrades["rate"] * 30));
         }
 
@@ -490,12 +505,9 @@
 
     canvas.addEventListener('touchmove', e => {
         e.preventDefault();
-        btnDpadUp.active = false;
-        btnDpadDown.active = false;
-        btnDpadLeft.active = false;
-        btnDpadRight.active = false;
-        btnFire.active = false;
-        mouse.pressed = false;
+        btnDpadUp.active = false; btnDpadDown.active = false;
+        btnDpadLeft.active = false; btnDpadRight.active = false;
+        btnFire.active = false; mouse.pressed = false;
 
         for (let touch of e.touches) {
             let pos = getCanvasMousePos(touch);
@@ -506,53 +518,27 @@
 
     canvas.addEventListener('touchend', e => {
         e.preventDefault();
-        btnDpadUp.active = false;
-        btnDpadDown.active = false;
-        btnDpadLeft.active = false;
-        btnDpadRight.active = false;
-        btnFire.active = false;
-        mouse.pressed = false;
+        btnDpadUp.active = false; btnDpadDown.active = false;
+        btnDpadLeft.active = false; btnDpadRight.active = false;
+        btnFire.active = false; mouse.pressed = false;
     });
 
     window.addEventListener('mouseup', () => {
-        btnDpadUp.active = false;
-        btnDpadDown.active = false;
-        btnDpadLeft.active = false;
-        btnDpadRight.active = false;
-        btnFire.active = false;
-        mouse.pressed = false;
+        btnDpadUp.active = false; btnDpadDown.active = false;
+        btnDpadLeft.active = false; btnDpadRight.active = false;
+        btnFire.active = false; mouse.pressed = false;
     });
 
-    // Hàm trả về giá tiền tương ứng theo từng cấp độ và từng loại trang bị
     function getUpgradeCost(itemId, currentLevel) {
-        if (itemId === "maxhp") {
-            const costs = [50, 125, 300, 1000, 3000];
-            return costs[currentLevel] || null;
-        } else if (itemId === "dmg") {
-            const costs = [300, 800, 1700];
-            return costs[currentLevel] || null;
-        } else if (itemId === "spd") {
-            const costs = [100, 200, 300, 400, 500];
-            return costs[currentLevel] || null;
-        } else if (itemId === "multishot") {
-            const costs = [5000, 12000];
-            return costs[currentLevel] || null;
-        } else if (itemId === "pierce") {
-            const costs = [150, 500, 1000, 1900];
-            return costs[currentLevel] || null;
-        } else if (itemId === "rate") {
-            const costs = [300, 1000, 2000, 3500];
-            return costs[currentLevel] || null;
-        } else if (itemId === "vampire") {
-            const costs = [10000, 20000];
-            return costs[currentLevel] || null;
-        } else if (itemId === "explosive") {
-            const costs = [5000];
-            return costs[currentLevel] || null;
-        } else if (itemId === "nova") {
-            const costs = [5000, 10000, 15000];
-            return costs[currentLevel] || null;
-        }
+        if (itemId === "maxhp") return [50, 125, 300, 1000, 3000][currentLevel] || null;
+        if (itemId === "dmg") return [300, 800, 1700][currentLevel] || null;
+        if (itemId === "spd") return [100, 200, 300, 400, 500][currentLevel] || null;
+        if (itemId === "multishot") return [5000, 12000][currentLevel] || null;
+        if (itemId === "pierce") return [150, 500, 1000, 1900][currentLevel] || null;
+        if (itemId === "rate") return [300, 1000, 2000, 3500][currentLevel] || null;
+        if (itemId === "vampire") return [10000, 20000][currentLevel] || null;
+        if (itemId === "explosive") return [5000][currentLevel] || null;
+        if (itemId === "nova") return [5000, 10000, 15000][currentLevel] || null;
         return 0;
     }
 
@@ -564,8 +550,54 @@
         let my = (clientY - rect.top) * scaleY;
 
         if (gameState === "MENU") {
-            if (mx >= WIDTH/2 - 140 && mx <= WIDTH/2 + 140 && my >= HEIGHT/2 + 10 && my <= HEIGHT/2 + 75) resetGame();
-            else if (mx >= WIDTH/2 - 140 && mx <= WIDTH/2 + 140 && my >= HEIGHT/2 + 90 && my <= HEIGHT/2 + 145) gameState = "SHOP";
+            if (mx >= WIDTH/2 - 140 && mx <= WIDTH/2 + 140 && my >= HEIGHT/2 - 10 && my <= HEIGHT/2 + 50) resetGame();
+            else if (mx >= WIDTH/2 - 140 && mx <= WIDTH/2 + 140 && my >= HEIGHT/2 + 65 && my <= HEIGHT/2 + 120) gameState = "SHOP";
+            else if (mx >= WIDTH/2 - 140 && mx <= WIDTH/2 + 140 && my >= HEIGHT/2 + 135 && my <= HEIGHT/2 + 185) {
+                // Chuyển sang màn hình nhập mật khẩu Admin
+                gameState = "ADMIN_LOGIN";
+            }
+        } else if (gameState === "ADMIN_LOGIN") {
+            // Nút Xác nhận mật khẩu
+            if (mx >= WIDTH/2 - 110 && mx <= WIDTH/2 + 110 && my >= 270 && my <= 320) {
+                let enteredPass = prompt("Nhập mật khẩu quản trị (Mặc định: admin123):");
+                if (enteredPass === ADMIN_SECRET_PASSWORD) {
+                    gameState = "ADMIN";
+                } else if (enteredPass !== null) {
+                    alert("Sai mật khẩu! Bạn không có quyền truy cập.");
+                }
+            }
+            // Quay lại Menu
+            else if (mx >= WIDTH/2 - 110 && mx <= WIDTH/2 + 110 && my >= HEIGHT - 65 && my <= HEIGHT - 20) {
+                gameState = "MENU";
+            }
+        } else if (gameState === "ADMIN") {
+            if (mx >= WIDTH/2 - 180 && mx <= WIDTH/2 + 180 && my >= 130 && my <= 180) {
+                clearAllData();
+                alert("Đã xóa sạch bộ nhớ người chơi thành công!");
+            }
+            else if (mx >= WIDTH/2 - 180 && mx <= WIDTH/2 + 180 && my >= 195 && my <= 245) {
+                playerGold += 50000;
+                saveGame();
+            }
+            else if (mx >= WIDTH/2 - 180 && mx <= WIDTH/2 + 180 && my >= 260 && my <= 310) {
+                for (let k in maxUpgradeLevels) {
+                    shopUpgrades[k] = maxUpgradeLevels[k];
+                }
+                saveGame();
+                player.reset();
+            }
+            else if (mx >= WIDTH/2 - 180 && mx <= WIDTH/2 + 180 && my >= 325 && my <= 375) {
+                currentWave = 10;
+                zombiesToSpawn = 100;
+                zombiesSpawnedCount = 0;
+                bossSpawnedInWave = false;
+            }
+            else if (mx >= WIDTH/2 - 180 && mx <= WIDTH/2 + 180 && my >= 390 && my <= 440) {
+                player.hp = player.maxHp;
+            }
+            else if (mx >= WIDTH/2 - 110 && mx <= WIDTH/2 + 110 && my >= HEIGHT - 65 && my <= HEIGHT - 20) {
+                gameState = "MENU";
+            }
         } else if (gameState === "SHOP") {
             if (mx >= WIDTH/2 - 110 && mx <= WIDTH/2 + 110 && my >= HEIGHT - 55 && my <= HEIGHT - 15) {
                 gameState = "MENU";
@@ -785,19 +817,64 @@
         if (gameState === "MENU") {
             ctx.fillStyle = "rgba(10, 10, 20, 0.75)"; ctx.fillRect(0, 0, WIDTH, HEIGHT);
             ctx.fillStyle = "rgb(45, 240, 120)"; ctx.font = "bold 52px Segoe UI"; ctx.textAlign = "center";
-            ctx.fillText("TANK VS ZOMBIES", WIDTH/2, 150);
+            ctx.fillText("TANK VS ZOMBIES", WIDTH/2, 140);
 
             drawCoinIcon(WIDTH - 75, 25, 12);
             ctx.fillStyle = "rgb(255, 210, 60)"; ctx.font = "bold 16px Segoe UI"; ctx.textAlign = "left";
             ctx.fillText(playerGold, WIDTH - 55, 31);
 
-            ctx.fillStyle = "rgb(45, 240, 120)"; ctx.fillRect(WIDTH/2 - 140, HEIGHT/2 + 10, 280, 65);
+            ctx.fillStyle = "rgb(45, 240, 120)"; ctx.fillRect(WIDTH/2 - 140, HEIGHT/2 - 10, 280, 60);
             ctx.fillStyle = "rgb(10, 10, 15)"; ctx.font = "bold 20px Segoe UI"; ctx.textAlign = "center";
-            ctx.fillText("🚀 BẮT ĐẦU CHƠI", WIDTH/2, HEIGHT/2 + 50);
+            ctx.fillText("🚀 BẮT ĐẦU CHƠI", WIDTH/2, HEIGHT/2 + 28);
 
-            ctx.fillStyle = "rgb(255, 210, 60)"; ctx.fillRect(WIDTH/2 - 140, HEIGHT/2 + 90, 280, 55);
+            ctx.fillStyle = "rgb(255, 210, 60)"; ctx.fillRect(WIDTH/2 - 140, HEIGHT/2 + 65, 280, 55);
             ctx.fillStyle = "rgb(10, 10, 15)"; ctx.font = "bold 18px Segoe UI";
-            ctx.fillText("🛒 CỬA HÀNG VẬT PHẨM", WIDTH/2, HEIGHT/2 + 124);
+            ctx.fillText("🛒 CỬA HÀNG VẬT PHẨM", WIDTH/2, HEIGHT/2 + 99);
+
+            ctx.fillStyle = "rgb(220, 60, 80)"; ctx.fillRect(WIDTH/2 - 140, HEIGHT/2 + 135, 280, 50);
+            ctx.fillStyle = "white"; ctx.font = "bold 17px Segoe UI";
+            ctx.fillText("⚙️ QUẢN TRỊ ADMIN", WIDTH/2, HEIGHT/2 + 166);
+
+        } else if (gameState === "ADMIN_LOGIN") {
+            ctx.fillStyle = "rgba(10, 10, 20, 0.95)"; ctx.fillRect(0, 0, WIDTH, HEIGHT);
+            ctx.fillStyle = "rgb(255, 70, 70)"; ctx.font = "bold 32px Segoe UI"; ctx.textAlign = "center";
+            ctx.fillText("🔒 XÁC THỰC QUẢN TRỊ VIÊN", WIDTH/2, 150);
+
+            ctx.fillStyle = "rgb(200, 50, 70)"; ctx.fillRect(WIDTH/2 - 110, 270, 220, 50);
+            ctx.fillStyle = "white"; ctx.font = "bold 16px Segoe UI"; ctx.textAlign = "center";
+            ctx.fillText("🔑 NHẬP MẬT KHẨU", WIDTH/2, 300);
+
+            ctx.fillStyle = "rgb(55, 55, 70)"; ctx.fillRect(WIDTH/2 - 110, HEIGHT - 65, 220, 45);
+            ctx.strokeStyle = "white"; ctx.strokeRect(WIDTH/2 - 110, HEIGHT - 65, 220, 45);
+            ctx.fillStyle = "white"; ctx.font = "bold 16px Segoe UI"; ctx.textAlign = "center";
+            ctx.fillText("QUAY LẠI MENU", WIDTH/2, HEIGHT - 37);
+
+        } else if (gameState === "ADMIN") {
+            ctx.fillStyle = "rgba(10, 10, 20, 0.95)"; ctx.fillRect(0, 0, WIDTH, HEIGHT);
+            ctx.fillStyle = "rgb(255, 70, 70)"; ctx.font = "bold 32px Segoe UI"; ctx.textAlign = "center";
+            ctx.fillText("⚙️ BẢNG QUẢN TRỊ ADMIN", WIDTH/2, 60);
+
+            let adminBtns = [
+                { text: "♻️ XÓA TOÀN BỘ DỮ LIỆU NGƯỜI CHƠI", y: 130, color: "rgb(200, 40, 40)" },
+                { text: "💰 THÊM +50,000 VÀNG", y: 195, color: "rgb(210, 160, 30)" },
+                { text: "⚡ MAX CẤP TẤT CẢ KỸ NĂNG SHOP", y: 260, color: "rgb(40, 150, 200)" },
+                { text: "🚀 NHẢY TỚI ĐỢT 10 (TRẬN BOSS)", y: 325, color: "rgb(140, 50, 200)" },
+                { text: "❤️ HỒI ĐẦY MÁU CHO XE TĂNG", y: 390, color: "rgb(40, 180, 90)" },
+            ];
+
+            adminBtns.forEach(btn => {
+                let isHover = mouse.x >= WIDTH/2 - 180 && mouse.x <= WIDTH/2 + 180 && mouse.y >= btn.y && mouse.y <= btn.y + 50;
+                ctx.fillStyle = isHover ? "white" : btn.color;
+                ctx.fillRect(WIDTH/2 - 180, btn.y, 360, 50);
+                ctx.fillStyle = isHover ? "black" : "white";
+                ctx.font = "bold 16px Segoe UI"; ctx.textAlign = "center";
+                ctx.fillText(btn.text, WIDTH/2, btn.y + 31);
+            });
+
+            ctx.fillStyle = "rgb(55, 55, 70)"; ctx.fillRect(WIDTH/2 - 110, HEIGHT - 65, 220, 45);
+            ctx.strokeStyle = "white"; ctx.strokeRect(WIDTH/2 - 110, HEIGHT - 65, 220, 45);
+            ctx.fillStyle = "white"; ctx.font = "bold 16px Segoe UI"; ctx.textAlign = "center";
+            ctx.fillText("QUAY LẠI MENU", WIDTH/2, HEIGHT - 37);
 
         } else if (gameState === "SHOP") {
             ctx.fillStyle = "rgba(10, 10, 20, 0.92)"; ctx.fillRect(0, 0, WIDTH, HEIGHT);
@@ -866,6 +943,7 @@
             coins.forEach(c => c.draw());
             bullets.forEach(b => b.draw());
             zombies.forEach(z => z.draw(player.x, player.y));
+            explosions.items?.forEach(e => e.draw());
             explosions.forEach(e => e.draw());
 
             ctx.fillStyle = "white"; ctx.font = "bold 16px Segoe UI"; ctx.textAlign = "left";
