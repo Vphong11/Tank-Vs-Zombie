@@ -55,12 +55,12 @@
     let gameState = "MENU"; 
     let currentChoices = [];
 
-    // On-screen Control Buttons Layout (D-Pad & Fire Button)
-    const btnDpadUp = { x: 90, y: HEIGHT - 130, r: 35, active: false };
-    const btnDpadDown = { x: 90, y: HEIGHT - 50, r: 35, active: false };
-    const btnDpadLeft = { x: 40, y: HEIGHT - 90, r: 35, active: false };
-    const btnDpadRight = { x: 140, y: HEIGHT - 90, r: 35, active: false };
-    const btnFire = { x: WIDTH - 90, y: HEIGHT - 90, r: 45, active: false };
+    // On-screen Control Buttons Layout (D-Pad & Fire Button - Tăng kích thước nút để dễ bấm)
+    const btnDpadUp = { x: 100, y: HEIGHT - 140, r: 42, active: false };
+    const btnDpadDown = { x: 100, y: HEIGHT - 50, r: 42, active: false };
+    const btnDpadLeft = { x: 45, y: HEIGHT - 95, r: 42, active: false };
+    const btnDpadRight = { x: 155, y: HEIGHT - 95, r: 42, active: false };
+    const btnFire = { x: WIDTH - 100, y: HEIGHT - 95, r: 52, active: false };
 
     let bgDecorations = [];
     for (let i = 0; i < 35; i++) {
@@ -425,6 +425,28 @@
         if (Math.hypot(mx - btnFire.x, my - btnFire.y) > btnFire.r) mouse.pressed = true;
     });
 
+    // Hỗ trợ thêm sự kiện cảm ứng (Touch) trên màn hình điện thoại/tablet
+    canvas.addEventListener('touchstart', e => {
+        e.preventDefault();
+        let rect = canvas.getBoundingClientRect();
+        for (let touch of e.changedTouches) {
+            let mx = touch.clientX - rect.left;
+            let my = touch.clientY - rect.top;
+            checkButtonPress(mx, my, true);
+            if (Math.hypot(mx - btnFire.x, my - btnFire.y) > btnFire.r) mouse.pressed = true;
+        }
+    }, { passive: false });
+
+    canvas.addEventListener('touchend', e => {
+        e.preventDefault();
+        btnDpadUp.active = false;
+        btnDpadDown.active = false;
+        btnDpadLeft.active = false;
+        btnDpadRight.active = false;
+        btnFire.active = false;
+        mouse.pressed = false;
+    });
+
     window.addEventListener('mouseup', () => {
         btnDpadUp.active = false;
         btnDpadDown.active = false;
@@ -439,9 +461,10 @@
         let mx = e.clientX - rect.left;
         let my = e.clientY - rect.top;
 
+        // Vùng nút BẮT ĐẦU CHƠI làm to ra: Từ WIDTH/2 - 140 đến WIDTH/2 + 140, chiều cao từ HEIGHT/2 + 10 đến HEIGHT/2 + 75
         if (gameState === "MENU") {
-            if (mx >= WIDTH/2 - 110 && mx <= WIDTH/2 + 110 && my >= HEIGHT/2 + 20 && my <= HEIGHT/2 + 68) resetGame();
-            else if (mx >= WIDTH/2 - 110 && mx <= WIDTH/2 + 110 && my >= HEIGHT/2 + 80 && my <= HEIGHT/2 + 128) gameState = "SHOP";
+            if (mx >= WIDTH/2 - 140 && mx <= WIDTH/2 + 140 && my >= HEIGHT/2 + 10 && my <= HEIGHT/2 + 75) resetGame();
+            else if (mx >= WIDTH/2 - 140 && mx <= WIDTH/2 + 140 && my >= HEIGHT/2 + 90 && my <= HEIGHT/2 + 145) gameState = "SHOP";
         } else if (gameState === "SHOP") {
             if (mx >= WIDTH/2 - 110 && mx <= WIDTH/2 + 110 && my >= HEIGHT - 55 && my <= HEIGHT - 15) {
                 gameState = "MENU";
@@ -517,14 +540,14 @@
 
         // D-Pad Background
         ctx.fillStyle = "rgba(40, 40, 55, 0.4)";
-        ctx.beginPath(); ctx.arc(90, HEIGHT - 90, 75, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(100, HEIGHT - 95, 85, 0, Math.PI * 2); ctx.fill();
 
         // D-Pad Buttons
         function drawPadBtn(btn, text) {
-            ctx.fillStyle = btn.active ? "rgba(0, 245, 245, 0.6)" : "rgba(70, 70, 95, 0.6)";
+            ctx.fillStyle = btn.active ? "rgba(0, 245, 245, 0.7)" : "rgba(70, 70, 95, 0.6)";
             ctx.beginPath(); ctx.arc(btn.x, btn.y, btn.r, 0, Math.PI * 2); ctx.fill();
-            ctx.strokeStyle = "rgba(255, 255, 255, 0.4)"; ctx.lineWidth = 2; ctx.stroke();
-            ctx.fillStyle = "white"; ctx.font = "bold 18px Segoe UI"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.5)"; ctx.lineWidth = 2; ctx.stroke();
+            ctx.fillStyle = "white"; ctx.font = "bold 20px Segoe UI"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
             ctx.fillText(text, btn.x, btn.y);
         }
 
@@ -534,10 +557,10 @@
         drawPadBtn(btnDpadRight, "►");
 
         // Fire Button
-        ctx.fillStyle = btnFire.active ? "rgba(255, 60, 60, 0.8)" : "rgba(180, 40, 40, 0.6)";
+        ctx.fillStyle = btnFire.active ? "rgba(255, 60, 60, 0.9)" : "rgba(180, 40, 40, 0.7)";
         ctx.beginPath(); ctx.arc(btnFire.x, btnFire.y, btnFire.r, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = "rgba(255, 210, 60, 0.6)"; ctx.lineWidth = 3; ctx.stroke();
-        ctx.fillStyle = "white"; ctx.font = "bold 16px Segoe UI"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.strokeStyle = "rgba(255, 210, 60, 0.7)"; ctx.lineWidth = 3; ctx.stroke();
+        ctx.fillStyle = "white"; ctx.font = "bold 18px Segoe UI"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
         ctx.fillText("BẮN", btnFire.x, btnFire.y);
         ctx.textBaseline = "alphabetic"; // Reset text baseline
     }
@@ -660,19 +683,21 @@
         if (gameState === "MENU") {
             ctx.fillStyle = "rgba(10, 10, 20, 0.75)"; ctx.fillRect(0, 0, WIDTH, HEIGHT);
             ctx.fillStyle = "rgb(45, 240, 120)"; ctx.font = "bold 52px Segoe UI"; ctx.textAlign = "center";
-            ctx.fillText("TANK VS ZOMBIES", WIDTH/2, 170);
+            ctx.fillText("TANK VS ZOMBIES", WIDTH/2, 150);
 
             drawCoinIcon(WIDTH - 75, 25, 12);
             ctx.fillStyle = "rgb(255, 210, 60)"; ctx.font = "bold 16px Segoe UI"; ctx.textAlign = "left";
             ctx.fillText(playerGold, WIDTH - 55, 31);
 
-            ctx.fillStyle = "rgb(45, 240, 120)"; ctx.fillRect(WIDTH/2 - 110, HEIGHT/2 + 20, 220, 48);
-            ctx.fillStyle = "rgb(10, 10, 15)"; ctx.font = "bold 16px Segoe UI"; ctx.textAlign = "center";
-            ctx.fillText("BẮT ĐẦU CHƠI", WIDTH/2, HEIGHT/2 + 50);
+            // Nút BẮT ĐẦU CHƠI làm to ra (Rộng 280, Cao 65, Font chữ to hơn)
+            ctx.fillStyle = "rgb(45, 240, 120)"; ctx.fillRect(WIDTH/2 - 140, HEIGHT/2 + 10, 280, 65);
+            ctx.fillStyle = "rgb(10, 10, 15)"; ctx.font = "bold 20px Segoe UI"; ctx.textAlign = "center";
+            ctx.fillText("🚀 BẮT ĐẦU CHƠI", WIDTH/2, HEIGHT/2 + 50);
 
-            ctx.fillStyle = "rgb(255, 210, 60)"; ctx.fillRect(WIDTH/2 - 110, HEIGHT/2 + 80, 220, 48);
-            ctx.fillStyle = "rgb(10, 10, 15)";
-            ctx.fillText("CỬA HÀNG VẬT PHẨM", WIDTH/2, HEIGHT/2 + 110);
+            // Nút Cửa Hàng phóng to tương ứng cho cân đối
+            ctx.fillStyle = "rgb(255, 210, 60)"; ctx.fillRect(WIDTH/2 - 140, HEIGHT/2 + 90, 280, 55);
+            ctx.fillStyle = "rgb(10, 10, 15)"; ctx.font = "bold 18px Segoe UI";
+            ctx.fillText("🛒 CỬA HÀNG VẬT PHẨM", WIDTH/2, HEIGHT/2 + 124);
 
         } else if (gameState === "SHOP") {
             ctx.fillStyle = "rgba(10, 10, 20, 0.92)"; ctx.fillRect(0, 0, WIDTH, HEIGHT);
