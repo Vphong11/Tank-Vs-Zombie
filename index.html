@@ -55,6 +55,16 @@
     let gameState = "MENU"; 
     let currentChoices = [];
 
+    // Check if the device has touch support (Mobile/Tablet)
+    const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+
+    // On-screen Control Buttons Layout (D-Pad & Fire Button)
+    const btnDpadUp = { x: 90, y: HEIGHT - 130, r: 35, active: false };
+    const btnDpadDown = { x: 90, y: HEIGHT - 50, r: 35, active: false };
+    const btnDpadLeft = { x: 40, y: HEIGHT - 90, r: 35, active: false };
+    const btnDpadRight = { x: 140, y: HEIGHT - 90, r: 35, active: false };
+    const btnFire = { x: WIDTH - 90, y: HEIGHT - 90, r: 45, active: false };
+
     let bgDecorations = [];
     for (let i = 0; i < 35; i++) {
         bgDecorations.push({
@@ -227,10 +237,10 @@
 
         move(keys) {
             let dx = 0, dy = 0;
-            if (keys['w'] && this.y > 30) dy -= 1;
-            if (keys['s'] && this.y < HEIGHT - 30) dy += 1;
-            if (keys['a'] && this.x > 30) dx -= 1;
-            if (keys['d'] && this.x < WIDTH - 30) dx += 1;
+            if ((keys['w'] || (isTouchDevice && btnDpadUp.active)) && this.y > 30) dy -= 1;
+            if ((keys['s'] || (isTouchDevice && btnDpadDown.active)) && this.y < HEIGHT - 30) dy += 1;
+            if ((keys['a'] || (isTouchDevice && btnDpadLeft.active)) && this.x > 30) dx -= 1;
+            if ((keys['d'] || (isTouchDevice && btnDpadRight.active)) && this.x < WIDTH - 30) dx += 1;
 
             if (dx !== 0 || dy !== 0) {
                 let len = Math.hypot(dx, dy);
@@ -278,16 +288,14 @@
             else { this.x = WIDTH + 45; this.y = Math.random() * HEIGHT; }
 
             this.isBoss = isBoss;
-            
-            // Hệ số tăng cường sức mạnh mỗi 10 wave (ví dụ: wave 1-10 hệ số = 1, wave 11-20 hệ số = 1.3,...)
             let tier = Math.floor((wave - 1) / 10);
-            let multiplier = 1 + (tier * 0.4); // Cứ mỗi 10 wave tăng 40% máu và sát thương
+            let multiplier = 1 + (tier * 0.4);
 
             if (isBoss) {
                 this.type = "TANK";
                 this.radius = 28; this.speed = 1.25;
                 this.hp = this.maxHp = (850 + (wave * 150)) * multiplier;
-                this.damage = 1.2 * multiplier; // Sát thương va chạm boss đau hơn
+                this.damage = 1.2 * multiplier;
                 this.skinColor = "rgb(40, 70, 50)";
                 this.shirtColor = "rgb(30, 30, 30)";
                 this.expReward = 1000; this.goldDrop = 150;
@@ -296,7 +304,7 @@
                 this.radius = this.type === "NORMAL" ? 16 : 13;
                 this.speed = (Math.random() * 0.5 + 1.3) + (wave * 0.05);
                 this.hp = this.maxHp = (50 + (wave - 1) * 20) * multiplier;
-                this.damage = 0.5 * multiplier; // Sát thương va chạm zombie thường
+                this.damage = 0.5 * multiplier;
                 this.skinColor = this.type === "NORMAL" ? "rgb(80, 130, 70)" : "rgb(130, 60, 50)";
                 this.shirtColor = this.type === "NORMAL" ? "rgb(60, 60, 90)" : "rgb(100, 30, 30)";
                 this.expReward = 15 + (wave * 2); this.goldDrop = 10 + wave;
@@ -392,39 +400,43 @@
     let player = new TankPlayer();
     let bullets = [], zombies = [], explosions = [], coins = [];
     let keys = {};
-    let mouse = { x: 0, y: 0, pressed: false };
+    let mouse = { x: WIDTH / 2 + 100, y: HEIGHT / 2, pressed: false };
 
     window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
     window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+    
     canvas.addEventListener('mousemove', e => {
         let rect = canvas.getBoundingClientRect();
         mouse.x = e.clientX - rect.left;
         mouse.y = e.clientY - rect.top;
     });
-    window.addEventListener('mousedown', () => mouse.pressed = true);
-    window.addEventListener('mouseup', () => mouse.pressed = false);
 
-    function resetGame() {
-        player.reset();
-        bullets = []; zombies = []; explosions = []; coins = [];
-        currentWave = 1; zombiesToSpawn = 10; zombiesSpawnedCount = 0; bossSpawnedInWave = false;
-        gameState = "PLAYING";
+    // Touch & Mouse Control Handlers for On-screen Buttons (Mobile only)
+    function checkButtonPress(mx, my, isDown) {
+        if (!isTouchDevice) return;
+        if (Math.hypot(mx - btnDpadUp.x, my - btnDpadUp.y) <= btnDpadUp.r) btnDpadUp.active = isDown;
+        if (Math.hypot(mx - btnDpadDown.x, my - btnDpadDown.y) <= btnDpadDown.r) btnDpadDown.active = isDown;
+        if (Math.hypot(mx - btnDpadLeft.x, my - btnDpadLeft.y) <= btnDpadLeft.r) btnDpadLeft.active = isDown;
+        if (Math.hypot(mx - btnDpadRight.x, my - btnDpadRight.y) <= btnDpadRight.r) btnDpadRight.active = isDown;
+        if (Math.hypot(mx - btnFire.x, my - btnFire.y) <= btnFire.r) btnFire.active = isDown;
     }
 
-    function applyUpgrade(upgradeId) {
-        if (upgradeId === "multishot") player.bulletCount = Math.min(5, player.bulletCount + 1);
-        else if (upgradeId === "pierce") player.pierceCount += 1;
-        else if (upgradeId === "explosive") player.explosiveBullets = true;
-        else if (upgradeId === "vampire") player.vampirism += 2;
-        else if (upgradeId === "nova") {
-            explosions.push(new Explosion(player.x, player.y, 220));
-            zombies.forEach(z => { if (Math.hypot(z.x - player.x, z.y - player.y) < 220) z.hp -= 70; });
-        }
-        else if (upgradeId === "dmg") player.damage *= 1.2;
-        else if (upgradeId === "spd") player.speed *= 1.15;
-        else if (upgradeId === "rate") player.fireRate = Math.max(60, player.fireRate * 0.8);
-        else if (upgradeId === "maxhp") { player.maxHp *= 1.25; player.hp += player.maxHp * 0.25; }
-    }
+    canvas.addEventListener('mousedown', e => {
+        let rect = canvas.getBoundingClientRect();
+        let mx = e.clientX - rect.left;
+        let my = e.clientY - rect.top;
+        checkButtonPress(mx, my, true);
+        if (!isTouchDevice || Math.hypot(mx - btnFire.x, my - btnFire.y) > btnFire.r) mouse.pressed = true;
+    });
+
+    window.addEventListener('mouseup', () => {
+        btnDpadUp.active = false;
+        btnDpadDown.active = false;
+        btnDpadLeft.active = false;
+        btnDpadRight.active = false;
+        btnFire.active = false;
+        mouse.pressed = false;
+    });
 
     canvas.addEventListener('click', e => {
         let rect = canvas.getBoundingClientRect();
@@ -482,13 +494,80 @@
         }
     });
 
+    function resetGame() {
+        player.reset();
+        bullets = []; zombies = []; explosions = []; coins = [];
+        currentWave = 1; zombiesToSpawn = 10; zombiesSpawnedCount = 0; bossSpawnedInWave = false;
+        gameState = "PLAYING";
+    }
+
+    function applyUpgrade(upgradeId) {
+        if (upgradeId === "multishot") player.bulletCount = Math.min(5, player.bulletCount + 1);
+        else if (upgradeId === "pierce") player.pierceCount += 1;
+        else if (upgradeId === "explosive") player.explosiveBullets = true;
+        else if (upgradeId === "vampire") player.vampirism += 2;
+        else if (upgradeId === "nova") {
+            explosions.push(new Explosion(player.x, player.y, 220));
+            zombies.forEach(z => { if (Math.hypot(z.x - player.x, z.y - player.y) < 220) z.hp -= 70; });
+        }
+        else if (upgradeId === "dmg") player.damage *= 1.2;
+        else if (upgradeId === "spd") player.speed *= 1.15;
+        else if (upgradeId === "rate") player.fireRate = Math.max(60, player.fireRate * 0.8);
+        else if (upgradeId === "maxhp") { player.maxHp *= 1.25; player.hp += player.maxHp * 0.25; }
+    }
+
+    function drawOnScreenControls() {
+        if (!isTouchDevice) return; // Chỉ hiển thị trên điện thoại
+        if (gameState !== "PLAYING" && gameState !== "LEVEL_UP") return;
+
+        // D-Pad Background
+        ctx.fillStyle = "rgba(40, 40, 55, 0.4)";
+        ctx.beginPath(); ctx.arc(90, HEIGHT - 90, 75, 0, Math.PI * 2); ctx.fill();
+
+        // D-Pad Buttons
+        function drawPadBtn(btn, text) {
+            ctx.fillStyle = btn.active ? "rgba(0, 245, 245, 0.6)" : "rgba(70, 70, 95, 0.6)";
+            ctx.beginPath(); ctx.arc(btn.x, btn.y, btn.r, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.4)"; ctx.lineWidth = 2; ctx.stroke();
+            ctx.fillStyle = "white"; ctx.font = "bold 18px Segoe UI"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            ctx.fillText(text, btn.x, btn.y);
+        }
+
+        drawPadBtn(btnDpadUp, "▲");
+        drawPadBtn(btnDpadDown, "▼");
+        drawPadBtn(btnDpadLeft, "◄");
+        drawPadBtn(btnDpadRight, "►");
+
+        // Fire Button
+        ctx.fillStyle = btnFire.active ? "rgba(255, 60, 60, 0.8)" : "rgba(180, 40, 40, 0.6)";
+        ctx.beginPath(); ctx.arc(btnFire.x, btnFire.y, btnFire.r, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = "rgba(255, 210, 60, 0.6)"; ctx.lineWidth = 3; ctx.stroke();
+        ctx.fillStyle = "white"; ctx.font = "bold 16px Segoe UI"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText("BẮN", btnFire.x, btnFire.y);
+        ctx.textBaseline = "alphabetic";
+    }
+
     function gameLoop() {
         let now = Date.now();
 
         if (gameState === "PLAYING") {
             player.move(keys);
 
-            if (mouse.pressed && now - player.lastShot > player.fireRate) {
+            // Auto aim nearest zombie on mobile when using fire button, or normal mouse tracking on PC
+            if (isTouchDevice && btnFire.active && zombies.length > 0) {
+                let closestZ = zombies[0];
+                let minDist = Math.hypot(closestZ.x - player.x, closestZ.y - player.y);
+                for (let i = 1; i < zombies.length; i++) {
+                    let d = Math.hypot(zombies[i].x - player.x, zombies[i].y - player.y);
+                    if (d < minDist) { minDist = d; closestZ = zombies[i]; }
+                }
+                mouse.x = closestZ.x;
+                mouse.y = closestZ.y;
+            }
+
+            let firingCondition = isTouchDevice ? (btnFire.active) : (mouse.pressed);
+
+            if (firingCondition && now - player.lastShot > player.fireRate) {
                 let baseAngle = Math.atan2(mouse.y - player.y, mouse.x - player.x);
                 let spread = 0.15, numB = player.bulletCount;
                 let startAngle = baseAngle - (spread * (numB - 1) / 2);
@@ -537,7 +616,7 @@
                 z.update(player.x, player.y);
 
                 if (Math.hypot(z.x - player.x, z.y - player.y) < z.radius + 16) {
-                    player.hp -= z.damage; // Sát thương chuẩn theo zombie từng wave
+                    player.hp -= z.damage;
                     if (player.hp <= 0) gameState = "GAME_OVER";
                 }
 
@@ -687,6 +766,8 @@
 
             ctx.fillStyle = "white"; ctx.font = "bold 14px Segoe UI"; ctx.textAlign = "center";
             ctx.fillText(`XP: ${Math.floor(player.exp)} / ${player.expToNextLevel}`, WIDTH/2, barY - 6);
+
+            drawOnScreenControls();
         }
 
         if (gameState === "LEVEL_UP") {
