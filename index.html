@@ -411,31 +411,50 @@
         mouse.y = e.clientY - rect.top;
     });
 
-    // Touch & Mouse Control Handlers for On-screen Buttons (Mobile only)
-    function checkButtonPress(mx, my, isDown) {
-        if (!isTouchDevice) return;
-        if (Math.hypot(mx - btnDpadUp.x, my - btnDpadUp.y) <= btnDpadUp.r) btnDpadUp.active = isDown;
-        if (Math.hypot(mx - btnDpadDown.x, my - btnDpadDown.y) <= btnDpadDown.r) btnDpadDown.active = isDown;
-        if (Math.hypot(mx - btnDpadLeft.x, my - btnDpadLeft.y) <= btnDpadLeft.r) btnDpadLeft.active = isDown;
-        if (Math.hypot(mx - btnDpadRight.x, my - btnDpadRight.y) <= btnDpadRight.r) btnDpadRight.active = isDown;
-        if (Math.hypot(mx - btnFire.x, my - btnFire.y) <= btnFire.r) btnFire.active = isDown;
-    }
-
-    canvas.addEventListener('mousedown', e => {
-        let rect = canvas.getBoundingClientRect();
-        let mx = e.clientX - rect.left;
-        let my = e.clientY - rect.top;
-        checkButtonPress(mx, my, true);
-        if (!isTouchDevice || Math.hypot(mx - btnFire.x, my - btnFire.y) > btnFire.r) mouse.pressed = true;
-    });
-
-    window.addEventListener('mouseup', () => {
+    // --- SỬA LẠI HOÀN CHỈNH PHẦN CẢM ỨNG (DI CHUYỂN & NÚT BẮN) ---
+    function handleTouch(e) {
         btnDpadUp.active = false;
         btnDpadDown.active = false;
         btnDpadLeft.active = false;
         btnDpadRight.active = false;
         btnFire.active = false;
-        mouse.pressed = false;
+
+        if (!isTouchDevice) return;
+        let rect = canvas.getBoundingClientRect();
+
+        for (let i = 0; i < e.touches.length; i++) {
+            let mx = e.touches[i].clientX - rect.left;
+            let my = e.touches[i].clientY - rect.top;
+
+            if (Math.hypot(mx - btnDpadUp.x, my - btnDpadUp.y) <= btnDpadUp.r) btnDpadUp.active = true;
+            if (Math.hypot(mx - btnDpadDown.x, my - btnDpadDown.y) <= btnDpadDown.r) btnDpadDown.active = true;
+            if (Math.hypot(mx - btnDpadLeft.x, my - btnDpadLeft.y) <= btnDpadLeft.r) btnDpadLeft.active = true;
+            if (Math.hypot(mx - btnDpadRight.x, my - btnDpadRight.y) <= btnDpadRight.r) btnDpadRight.active = true;
+            if (Math.hypot(mx - btnFire.x, my - btnFire.y) <= btnFire.r) btnFire.active = true;
+        }
+    }
+
+    canvas.addEventListener('touchstart', e => {
+        handleTouch(e);
+        e.preventDefault();
+    }, { passive: false });
+
+    canvas.addEventListener('touchmove', e => {
+        handleTouch(e);
+        e.preventDefault();
+    }, { passive: false });
+
+    canvas.addEventListener('touchend', e => {
+        handleTouch(e);
+        e.preventDefault();
+    }, { passive: false });
+
+    canvas.addEventListener('mousedown', e => {
+        if (!isTouchDevice) mouse.pressed = true;
+    });
+
+    window.addEventListener('mouseup', () => {
+        if (!isTouchDevice) mouse.pressed = false;
     });
 
     canvas.addEventListener('click', e => {
@@ -517,14 +536,12 @@
     }
 
     function drawOnScreenControls() {
-        if (!isTouchDevice) return; // Chỉ hiển thị trên điện thoại
+        if (!isTouchDevice) return;
         if (gameState !== "PLAYING" && gameState !== "LEVEL_UP") return;
 
-        // D-Pad Background
         ctx.fillStyle = "rgba(40, 40, 55, 0.4)";
         ctx.beginPath(); ctx.arc(90, HEIGHT - 90, 75, 0, Math.PI * 2); ctx.fill();
 
-        // D-Pad Buttons
         function drawPadBtn(btn, text) {
             ctx.fillStyle = btn.active ? "rgba(0, 245, 245, 0.6)" : "rgba(70, 70, 95, 0.6)";
             ctx.beginPath(); ctx.arc(btn.x, btn.y, btn.r, 0, Math.PI * 2); ctx.fill();
@@ -538,7 +555,6 @@
         drawPadBtn(btnDpadLeft, "◄");
         drawPadBtn(btnDpadRight, "►");
 
-        // Fire Button
         ctx.fillStyle = btnFire.active ? "rgba(255, 60, 60, 0.8)" : "rgba(180, 40, 40, 0.6)";
         ctx.beginPath(); ctx.arc(btnFire.x, btnFire.y, btnFire.r, 0, Math.PI * 2); ctx.fill();
         ctx.strokeStyle = "rgba(255, 210, 60, 0.6)"; ctx.lineWidth = 3; ctx.stroke();
@@ -553,7 +569,6 @@
         if (gameState === "PLAYING") {
             player.move(keys);
 
-            // Auto aim nearest zombie on mobile when using fire button, or normal mouse tracking on PC
             if (isTouchDevice && btnFire.active && zombies.length > 0) {
                 let closestZ = zombies[0];
                 let minDist = Math.hypot(closestZ.x - player.x, closestZ.y - player.y);
