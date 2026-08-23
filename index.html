@@ -28,7 +28,6 @@
             max-width: 100%;
             max-height: 100vh;
         }
-        /* Cảnh báo xoay ngang màn hình trên điện thoại */
         #rotateWarning {
             display: none;
             position: fixed;
@@ -94,8 +93,6 @@
     });
 
     let isMouseDown = false;
-    
-    // Joystick và cảm ứng di động
     let joystickActive = false;
     let joystickTouchId = null;
     let joystickCenter = { x: 120, y: HEIGHT - 120 };
@@ -115,7 +112,6 @@
     });
     window.addEventListener('mouseup', e => { if (e.button === 0) isMouseDown = false; });
 
-    // Xử lý cảm ứng chuẩn trên điện thoại (Hỗ trợ tỉ lệ màn hình canvas)
     window.addEventListener('touchstart', e => {
         let rect = canvas.getBoundingClientRect();
         for (let i = 0; i < e.changedTouches.length; i++) {
@@ -195,18 +191,11 @@
         let offset = isHovered ? -2 : 0;
         let nx = x + offset, ny = y + offset;
 
-        if (isHovered) {
-            ctx.fillStyle = "rgba(255, 215, 0, 0.4)";
-            ctx.beginPath(); ctx.roundRect(nx - 8, ny - 8, size + 16, size + 16, 12); ctx.fill();
-        }
-
         ctx.fillStyle = "rgb(8, 8, 12)";
         ctx.beginPath(); ctx.roundRect(nx + 2, ny + 4, size, size, 10); ctx.fill();
-
-        ctx.fillStyle = isHovered ? "rgb(48, 52, 75)" : "rgb(28, 30, 42)";
+        ctx.fillStyle = "rgb(28, 30, 42)";
         ctx.beginPath(); ctx.roundRect(nx, ny, size, size, 10); ctx.fill();
-
-        ctx.strokeStyle = isHovered ? "rgb(255, 210, 60)" : "rgb(110, 115, 140)";
+        ctx.strokeStyle = "rgb(110, 115, 140)";
         ctx.lineWidth = 2;
         ctx.beginPath(); ctx.roundRect(nx, ny, size, size, 10); ctx.stroke();
 
@@ -384,8 +373,39 @@
 
         draw(px, py) {
             let ix = Math.floor(this.x), iy = Math.floor(this.y);
+            let angleToPlayer = Math.atan2(py - iy, px - ix);
+
+            ctx.save();
+            ctx.translate(ix, iy);
+            ctx.rotate(angleToPlayer);
+
+            // Bóng dưới chân
+            ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
+            ctx.beginPath(); ctx.ellipse(0, 0, this.radius + 2, this.radius - 2, 0, 0, Math.PI * 2); ctx.fill();
+
+            // Thân áo zombie
+            ctx.fillStyle = this.shirtColor;
+            ctx.beginPath(); ctx.arc(0, 0, this.radius * 0.75, 0, Math.PI * 2); ctx.fill();
+
+            // Hai tay giơ lên
             ctx.fillStyle = this.skinColor;
-            ctx.beginPath(); ctx.arc(ix, iy, this.radius, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(this.radius * 0.4, -this.radius * 0.8, 4.5, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(this.radius * 0.4, this.radius * 0.8, 4.5, 0, Math.PI * 2); ctx.fill();
+
+            // Đầu zombie
+            ctx.fillStyle = this.skinColor;
+            ctx.beginPath(); ctx.arc(this.radius * 0.3, 0, this.radius * 0.55, 0, Math.PI * 2); ctx.fill();
+
+            ctx.restore();
+
+            // Thanh máu trên đầu zombie
+            if (this.hp < this.maxHp) {
+                let barW = this.radius * 2.2;
+                ctx.fillStyle = "rgb(15, 15, 20)";
+                ctx.fillRect(ix - barW / 2, iy - this.radius - 12, barW, 4);
+                ctx.fillStyle = "rgb(45, 240, 120)";
+                ctx.fillRect(ix - barW / 2, iy - this.radius - 12, Math.max(0, barW * (this.hp / this.maxHp)), 4);
+            }
         }
     }
 
@@ -677,7 +697,6 @@
             zombies.forEach(z => z.draw(player.x, player.y));
             explosions.forEach(e => e.draw());
 
-            // Vẽ Joystick ảo và nút bắn
             ctx.fillStyle = "rgba(255, 255, 255, 0.1)";
             ctx.beginPath(); ctx.arc(joystickCenter.x, joystickCenter.y, 45, 0, Math.PI*2); ctx.fill();
             ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
