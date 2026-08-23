@@ -55,6 +55,9 @@
     let gameState = "MENU"; 
     let currentChoices = [];
 
+     // Check if the device has touch support (Mobile/Tablet)
+    const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+    
     // On-screen Control Buttons Layout (D-Pad & Fire Button - Tăng kích thước nút để dễ bấm)
     const btnDpadUp = { x: 100, y: HEIGHT - 140, r: 42, active: false };
     const btnDpadDown = { x: 100, y: HEIGHT - 50, r: 42, active: false };
@@ -456,12 +459,12 @@
         mouse.pressed = false;
     });
 
-    canvas.addEventListener('click', e => {
+    // Hàm xử lý chung khi click hoặc chạm chọn menu/nút bấm
+    function handleScreenClick(clientX, clientY) {
         let rect = canvas.getBoundingClientRect();
-        let mx = e.clientX - rect.left;
-        let my = e.clientY - rect.top;
+        let mx = clientX - rect.left;
+        let my = clientY - rect.top;
 
-        // Vùng nút BẮT ĐẦU CHƠI làm to ra: Từ WIDTH/2 - 140 đến WIDTH/2 + 140, chiều cao từ HEIGHT/2 + 10 đến HEIGHT/2 + 75
         if (gameState === "MENU") {
             if (mx >= WIDTH/2 - 140 && mx <= WIDTH/2 + 140 && my >= HEIGHT/2 + 10 && my <= HEIGHT/2 + 75) resetGame();
             else if (mx >= WIDTH/2 - 140 && mx <= WIDTH/2 + 140 && my >= HEIGHT/2 + 90 && my <= HEIGHT/2 + 145) gameState = "SHOP";
@@ -510,6 +513,19 @@
             } else if (mx >= WIDTH/2 - 110 && mx <= WIDTH/2 + 110 && my >= HEIGHT/2 + 70 && my <= HEIGHT/2 + 118) {
                 gameState = "MENU";
             }
+        }
+    }
+
+    // Xử lý sự kiện click trên PC
+    canvas.addEventListener('click', e => {
+        handleScreenClick(e.clientX, e.clientY);
+    });
+
+    // Xử lý sự kiện chạm nhạy trên điện thoại
+    canvas.addEventListener('touchend', e => {
+        if (e.changedTouches.length > 0) {
+            let touch = e.changedTouches[0];
+            handleScreenClick(touch.clientX, touch.clientY);
         }
     });
 
@@ -562,7 +578,7 @@
         ctx.strokeStyle = "rgba(255, 210, 60, 0.7)"; ctx.lineWidth = 3; ctx.stroke();
         ctx.fillStyle = "white"; ctx.font = "bold 18px Segoe UI"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
         ctx.fillText("BẮN", btnFire.x, btnFire.y);
-        ctx.textBaseline = "alphabetic"; // Reset text baseline
+        ctx.textBaseline = "alphabetic"; 
     }
 
     function gameLoop() {
@@ -571,7 +587,6 @@
         if (gameState === "PLAYING") {
             player.move(keys);
 
-            // Auto aim nearest zombie if firing via on-screen button or mouse pressed
             if (zombies.length > 0) {
                 let closestZ = zombies[0];
                 let minDist = Math.hypot(closestZ.x - player.x, closestZ.y - player.y);
@@ -689,12 +704,10 @@
             ctx.fillStyle = "rgb(255, 210, 60)"; ctx.font = "bold 16px Segoe UI"; ctx.textAlign = "left";
             ctx.fillText(playerGold, WIDTH - 55, 31);
 
-            // Nút BẮT ĐẦU CHƠI làm to ra (Rộng 280, Cao 65, Font chữ to hơn)
             ctx.fillStyle = "rgb(45, 240, 120)"; ctx.fillRect(WIDTH/2 - 140, HEIGHT/2 + 10, 280, 65);
             ctx.fillStyle = "rgb(10, 10, 15)"; ctx.font = "bold 20px Segoe UI"; ctx.textAlign = "center";
             ctx.fillText("🚀 BẮT ĐẦU CHƠI", WIDTH/2, HEIGHT/2 + 50);
 
-            // Nút Cửa Hàng phóng to tương ứng cho cân đối
             ctx.fillStyle = "rgb(255, 210, 60)"; ctx.fillRect(WIDTH/2 - 140, HEIGHT/2 + 90, 280, 55);
             ctx.fillStyle = "rgb(10, 10, 15)"; ctx.font = "bold 18px Segoe UI";
             ctx.fillText("🛒 CỬA HÀNG VẬT PHẨM", WIDTH/2, HEIGHT/2 + 124);
