@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>2D Tank vs Zombies - Responsive Version</title>
+    <title>2D Tank vs Zombies - Manual Aim Version</title>
     <style>
         * {
             box-sizing: border-box;
@@ -55,12 +55,9 @@
     function resizeGame() {
         let windowWidth = window.innerWidth;
         let windowHeight = window.innerHeight;
-        
         let gameWidth = 900;
         let gameHeight = 650;
-        
         let scale = Math.min(windowWidth / gameWidth, windowHeight / gameHeight);
-        
         canvas.style.width = (gameWidth * scale) + "px";
         canvas.style.height = (gameHeight * scale) + "px";
     }
@@ -220,6 +217,7 @@
         constructor() {
             this.maxHp = 120;
             this.hp = 120;
+            this.gunAngle = 0; // Góc nòng súng lưu trữ độc lập, không tự thay đổi nếu chuột đứng yên
             this.reset();
         }
 
@@ -249,7 +247,6 @@
 
         draw() {
             let px = Math.floor(this.x), py = Math.floor(this.y);
-            let gunAngle = Math.atan2(mouse.y - py, mouse.x - px);
 
             ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
             ctx.beginPath(); ctx.ellipse(px, py, 30, 25, 0, 0, Math.PI * 2); ctx.fill();
@@ -260,8 +257,8 @@
             ctx.fillStyle = "rgb(40, 110, 60)";
             ctx.fillRect(px - 20, py - 16, 40, 32);
 
-            let ex = px + Math.cos(gunAngle) * 32;
-            let ey = py + Math.sin(gunAngle) * 32;
+            let ex = px + Math.cos(this.gunAngle) * 32;
+            let ey = py + Math.sin(this.gunAngle) * 32;
             ctx.strokeStyle = "rgb(30, 30, 35)";
             ctx.lineWidth = 8;
             ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(ex, ey); ctx.stroke();
@@ -446,10 +443,14 @@
     window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
     window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
     
+    // Cập nhật hướng nòng súng hoàn toàn theo vị trí chuột di chuyển trên máy tính
     canvas.addEventListener('mousemove', e => {
         let pos = getCanvasMousePos(e);
         mouse.x = pos.x;
         mouse.y = pos.y;
+        if (gameState === "PLAYING") {
+            player.gunAngle = Math.atan2(mouse.y - player.y, mouse.x - player.x);
+        }
     });
 
     function checkButtonPress(mx, my, isDown) {
@@ -471,7 +472,11 @@
         for (let touch of e.changedTouches) {
             let pos = getCanvasMousePos(touch);
             checkButtonPress(pos.x, pos.y, true);
-            if (Math.hypot(pos.x - btnFire.x, pos.y - btnFire.y) > btnFire.r) mouse.pressed = true;
+            if (Math.hypot(pos.x - btnFire.x, pos.y - btnFire.y) > btnFire.r) {
+                mouse.pressed = true;
+                // Trên màn hình cảm ứng, vuốt vùng trống sẽ xoay nòng súng
+                player.gunAngle = Math.atan2(pos.y - player.y, pos.x - player.x);
+            }
         }
     }, { passive: false });
 
@@ -487,7 +492,10 @@
         for (let touch of e.touches) {
             let pos = getCanvasMousePos(touch);
             checkButtonPress(pos.x, pos.y, true);
-            if (Math.hypot(pos.x - btnFire.x, pos.y - btnFire.y) > btnFire.r) mouse.pressed = true;
+            if (Math.hypot(pos.x - btnFire.x, pos.y - btnFire.y) > btnFire.r) {
+                mouse.pressed = true;
+                player.gunAngle = Math.atan2(pos.y - player.y, pos.x - player.x);
+            }
         }
     }, { passive: false });
 
@@ -572,13 +580,6 @@
         handleScreenClick(e.clientX, e.clientY);
     });
 
-    canvas.addEventListener('touchend', e => {
-        if (e.changedTouches.length > 0) {
-            let touch = e.changedTouches[0];
-            handleScreenClick(touch.clientX, touch.clientY);
-        }
-    });
-
     function resetGame() {
         player.reset();
         bullets = []; zombies = []; explosions = []; coins = [];
@@ -634,10 +635,9 @@
         if (gameState === "PLAYING") {
             player.move(keys);
 
-            // ĐÃ XÓA KHỐI CODE TỰ ĐỘNG AIM THEO ZOMBIE Ở ĐÂY
-
+            // Bắn đạn dựa theo hướng nòng súng thủ công hiện tại
             if ((mouse.pressed || btnFire.active) && now - player.lastShot > player.fireRate) {
-                let baseAngle = Math.atan2(mouse.y - player.y, mouse.x - player.x);
+                let baseAngle = player.gunAngle;
                 let spread = 0.15, numB = player.bulletCount;
                 let startAngle = baseAngle - (spread * (numB - 1) / 2);
                 for (let i = 0; i < numB; i++) {
