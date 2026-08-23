@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>2D Tank vs Zombies - Manual Aim Version</title>
+    <title>2D Tank vs Zombies - Responsive Version</title>
     <style>
         * {
             box-sizing: border-box;
@@ -23,6 +23,7 @@
             height: 100vh;
             touch-action: none;
         }
+        /* Khung chứa game tự động co giãn tối đa màn hình mà vẫn giữ đúng tỷ lệ chuẩn */
         #game-container {
             position: relative;
             width: 100%;
@@ -52,6 +53,7 @@
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
 
+    // --- TỰ ĐỘNG CO GIÃN KHUNG HÌNH THEO MÀN HÌNH (RESPONSIVE CANVAS) ---
     function resizeGame() {
         let windowWidth = window.innerWidth;
         let windowHeight = window.innerHeight;
@@ -67,6 +69,7 @@
 
     window.addEventListener('resize', resizeGame);
     window.addEventListener('orientationchange', resizeGame);
+    // Gọi ngay lần đầu tiên tải trang
     setTimeout(resizeGame, 50);
 
     let playerGold = parseInt(localStorage.getItem('tank_gold')) || 500;
@@ -90,6 +93,7 @@
     let gameState = "MENU"; 
     let currentChoices = [];
 
+    // Phím điều khiển ảo cho điện thoại
     const btnDpadUp = { x: 100, y: HEIGHT - 140, r: 42, active: false };
     const btnDpadDown = { x: 100, y: HEIGHT - 50, r: 42, active: false };
     const btnDpadLeft = { x: 45, y: HEIGHT - 95, r: 42, active: false };
@@ -106,6 +110,7 @@
         });
     }
 
+    // Hàm chuyển đổi tọa độ từ màn hình thực tế sang tọa độ gốc của Canvas (900x650)
     function getCanvasMousePos(e) {
         let rect = canvas.getBoundingClientRect();
         let scaleX = canvas.width / rect.width;
@@ -463,11 +468,7 @@
     canvas.addEventListener('mousedown', e => {
         let pos = getCanvasMousePos(e);
         checkButtonPress(pos.x, pos.y, true);
-        if (Math.hypot(pos.x - btnFire.x, pos.y - btnFire.y) > btnFire.r) {
-            mouse.pressed = true;
-            mouse.x = pos.x;
-            mouse.y = pos.y;
-        }
+        if (Math.hypot(pos.x - btnFire.x, pos.y - btnFire.y) > btnFire.r) mouse.pressed = true;
     });
 
     canvas.addEventListener('touchstart', e => {
@@ -475,11 +476,7 @@
         for (let touch of e.changedTouches) {
             let pos = getCanvasMousePos(touch);
             checkButtonPress(pos.x, pos.y, true);
-            if (Math.hypot(pos.x - btnFire.x, pos.y - btnFire.y) > btnFire.r) {
-                mouse.pressed = true;
-                mouse.x = pos.x;
-                mouse.y = pos.y;
-            }
+            if (Math.hypot(pos.x - btnFire.x, pos.y - btnFire.y) > btnFire.r) mouse.pressed = true;
         }
     }, { passive: false });
 
@@ -495,11 +492,7 @@
         for (let touch of e.touches) {
             let pos = getCanvasMousePos(touch);
             checkButtonPress(pos.x, pos.y, true);
-            if (Math.hypot(pos.x - btnFire.x, pos.y - btnFire.y) > btnFire.r) {
-                mouse.pressed = true;
-                mouse.x = pos.x;
-                mouse.y = pos.y;
-            }
+            if (Math.hypot(pos.x - btnFire.x, pos.y - btnFire.y) > btnFire.r) mouse.pressed = true;
         }
     }, { passive: false });
 
@@ -584,6 +577,13 @@
         handleScreenClick(e.clientX, e.clientY);
     });
 
+    canvas.addEventListener('touchend', e => {
+        if (e.changedTouches.length > 0) {
+            let touch = e.changedTouches[0];
+            handleScreenClick(touch.clientX, touch.clientY);
+        }
+    });
+
     function resetGame() {
         player.reset();
         bullets = []; zombies = []; explosions = []; coins = [];
@@ -639,7 +639,17 @@
         if (gameState === "PLAYING") {
             player.move(keys);
 
-            // Bỏ đoạn tự động tìm zombie gần nhất. Nòng súng giờ đây tuân thủ hoàn toàn vị trí chuột/chạm tay thủ công.
+            if (zombies.length > 0) {
+                let closestZ = zombies[0];
+                let minDist = Math.hypot(closestZ.x - player.x, closestZ.y - player.y);
+                for (let i = 1; i < zombies.length; i++) {
+                    let d = Math.hypot(zombies[i].x - player.x, zombies[i].y - player.y);
+                    if (d < minDist) { minDist = d; closestZ = zombies[i]; }
+                }
+                mouse.x = closestZ.x;
+                mouse.y = closestZ.y;
+            }
+
             if ((mouse.pressed || btnFire.active) && now - player.lastShot > player.fireRate) {
                 let baseAngle = Math.atan2(mouse.y - player.y, mouse.x - player.x);
                 let spread = 0.15, numB = player.bulletCount;
