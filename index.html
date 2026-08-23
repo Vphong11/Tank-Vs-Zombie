@@ -3,26 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>2D Tank vs Zombies - Web Version</title>
+    <title>2D Tank vs Zombies - Responsive Version</title>
     <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
         body {
             margin: 0;
             background-color: #0a0a0f;
             color: white;
-            text-align: center;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             overflow: hidden;
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
+            width: 100vw;
             height: 100vh;
             touch-action: none;
         }
+        /* Khung chứa game tự động co giãn tối đa màn hình mà vẫn giữ đúng tỷ lệ chuẩn */
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
         canvas {
-            background-color: #14141c;
             display: block;
-            border: 3px solid #333345;
+            background-color: #14141c;
             box-shadow: 0 0 30px rgba(0,0,0,0.8);
             border-radius: 8px;
         }
@@ -30,11 +42,33 @@
 </head>
 <body>
 
-    <canvas id="gameCanvas" width="900" height="650"></canvas>
+    <div id="game-container">
+        <canvas id="gameCanvas" width="900" height="650"></canvas>
+    </div>
 
 <script>
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
+
+    // --- TỰ ĐỘNG CO GIÃN KHUNG HÌNH THEO MÀN HÌNH (RESPONSIVE CANVAS) ---
+    function resizeGame() {
+        let container = document.getElementById("game-container");
+        let windowWidth = container.clientWidth;
+        let windowHeight = container.clientHeight;
+        
+        let gameWidth = 900;
+        let gameHeight = 650;
+        
+        let scale = Math.min(windowWidth / gameWidth, windowHeight / gameHeight);
+        
+        canvas.style.width = (gameWidth * scale) + "px";
+        canvas.style.height = (gameHeight * scale) + "px";
+    }
+
+    window.addEventListener('resize', resizeGame);
+    window.addEventListener('orientationchange', resizeGame);
+    // Gọi ngay lần đầu tiên tải trang
+    setTimeout(resizeGame, 50);
 
     let playerGold = parseInt(localStorage.getItem('tank_gold')) || 500;
     let shopUpgrades = JSON.parse(localStorage.getItem('tank_upgrades')) || {
@@ -57,10 +91,7 @@
     let gameState = "MENU"; 
     let currentChoices = [];
 
-     // Check if the device has touch support (Mobile/Tablet)
-    const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-    
-    // On-screen Control Buttons Layout (D-Pad & Fire Button - Tăng kích thước nút để dễ bấm)
+    // Phím điều khiển ảo cho điện thoại
     const btnDpadUp = { x: 100, y: HEIGHT - 140, r: 42, active: false };
     const btnDpadDown = { x: 100, y: HEIGHT - 50, r: 42, active: false };
     const btnDpadLeft = { x: 45, y: HEIGHT - 95, r: 42, active: false };
@@ -75,6 +106,17 @@
             y: Math.random() * (HEIGHT - 100) + 50,
             size: Math.floor(Math.random() * 35) + 20
         });
+    }
+
+    // Hàm chuyển đổi tọa độ từ màn hình thực tế sang tọa độ gốc của Canvas (900x650)
+    function getCanvasMousePos(e) {
+        let rect = canvas.getBoundingClientRect();
+        let scaleX = canvas.width / rect.width;
+        let scaleY = canvas.height / rect.height;
+        return {
+            x: (e.clientX - rect.left) * scaleX,
+            y: (e.clientY - rect.top) * scaleY
+        };
     }
 
     function drawCoinIcon(x, y, radius = 10) {
@@ -408,12 +450,11 @@
     window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
     
     canvas.addEventListener('mousemove', e => {
-        let rect = canvas.getBoundingClientRect();
-        mouse.x = e.clientX - rect.left;
-        mouse.y = e.clientY - rect.top;
+        let pos = getCanvasMousePos(e);
+        mouse.x = pos.x;
+        mouse.y = pos.y;
     });
 
-    // Touch & Mouse Control Handlers for On-screen Buttons
     function checkButtonPress(mx, my, isDown) {
         if (Math.hypot(mx - btnDpadUp.x, my - btnDpadUp.y) <= btnDpadUp.r) btnDpadUp.active = isDown;
         if (Math.hypot(mx - btnDpadDown.x, my - btnDpadDown.y) <= btnDpadDown.r) btnDpadDown.active = isDown;
@@ -423,29 +464,22 @@
     }
 
     canvas.addEventListener('mousedown', e => {
-        let rect = canvas.getBoundingClientRect();
-        let mx = e.clientX - rect.left;
-        let my = e.clientY - rect.top;
-        checkButtonPress(mx, my, true);
-        if (Math.hypot(mx - btnFire.x, my - btnFire.y) > btnFire.r) mouse.pressed = true;
+        let pos = getCanvasMousePos(e);
+        checkButtonPress(pos.x, pos.y, true);
+        if (Math.hypot(pos.x - btnFire.x, pos.y - btnFire.y) > btnFire.r) mouse.pressed = true;
     });
 
-    // Hỗ trợ thêm sự kiện cảm ứng (Touch) trên màn hình điện thoại/tablet
     canvas.addEventListener('touchstart', e => {
         e.preventDefault();
-        let rect = canvas.getBoundingClientRect();
         for (let touch of e.changedTouches) {
-            let mx = touch.clientX - rect.left;
-            let my = touch.clientY - rect.top;
-            checkButtonPress(mx, my, true);
-            if (Math.hypot(mx - btnFire.x, my - btnFire.y) > btnFire.r) mouse.pressed = true;
+            let pos = getCanvasMousePos(touch);
+            checkButtonPress(pos.x, pos.y, true);
+            if (Math.hypot(pos.x - btnFire.x, pos.y - btnFire.y) > btnFire.r) mouse.pressed = true;
         }
     }, { passive: false });
 
     canvas.addEventListener('touchmove', e => {
         e.preventDefault();
-        let rect = canvas.getBoundingClientRect();
-        // Reset trạng thái các nút dpad và fire trước khi check lại theo danh sách touch đang hiển thị
         btnDpadUp.active = false;
         btnDpadDown.active = false;
         btnDpadLeft.active = false;
@@ -454,10 +488,9 @@
         mouse.pressed = false;
 
         for (let touch of e.touches) {
-            let mx = touch.clientX - rect.left;
-            let my = touch.clientY - rect.top;
-            checkButtonPress(mx, my, true);
-            if (Math.hypot(mx - btnFire.x, my - btnFire.y) > btnFire.r) mouse.pressed = true;
+            let pos = getCanvasMousePos(touch);
+            checkButtonPress(pos.x, pos.y, true);
+            if (Math.hypot(pos.x - btnFire.x, pos.y - btnFire.y) > btnFire.r) mouse.pressed = true;
         }
     }, { passive: false });
 
@@ -480,11 +513,12 @@
         mouse.pressed = false;
     });
 
-    // Hàm xử lý chung khi click hoặc chạm chọn menu/nút bấm
     function handleScreenClick(clientX, clientY) {
         let rect = canvas.getBoundingClientRect();
-        let mx = clientX - rect.left;
-        let my = clientY - rect.top;
+        let scaleX = canvas.width / rect.width;
+        let scaleY = canvas.height / rect.height;
+        let mx = (clientX - rect.left) * scaleX;
+        let my = (clientY - rect.top) * scaleY;
 
         if (gameState === "MENU") {
             if (mx >= WIDTH/2 - 140 && mx <= WIDTH/2 + 140 && my >= HEIGHT/2 + 10 && my <= HEIGHT/2 + 75) resetGame();
@@ -537,12 +571,10 @@
         }
     }
 
-    // Xử lý sự kiện click trên PC
     canvas.addEventListener('click', e => {
         handleScreenClick(e.clientX, e.clientY);
     });
 
-    // Xử lý sự kiện chạm nhạy trên điện thoại
     canvas.addEventListener('touchend', e => {
         if (e.changedTouches.length > 0) {
             let touch = e.changedTouches[0];
@@ -575,11 +607,9 @@
     function drawOnScreenControls() {
         if (gameState !== "PLAYING" && gameState !== "LEVEL_UP") return;
 
-        // D-Pad Background
         ctx.fillStyle = "rgba(40, 40, 55, 0.4)";
         ctx.beginPath(); ctx.arc(100, HEIGHT - 95, 85, 0, Math.PI * 2); ctx.fill();
 
-        // D-Pad Buttons
         function drawPadBtn(btn, text) {
             ctx.fillStyle = btn.active ? "rgba(0, 245, 245, 0.7)" : "rgba(70, 70, 95, 0.6)";
             ctx.beginPath(); ctx.arc(btn.x, btn.y, btn.r, 0, Math.PI * 2); ctx.fill();
@@ -593,7 +623,6 @@
         drawPadBtn(btnDpadLeft, "◄");
         drawPadBtn(btnDpadRight, "►");
 
-        // Fire Button
         ctx.fillStyle = btnFire.active ? "rgba(255, 60, 60, 0.9)" : "rgba(180, 40, 40, 0.7)";
         ctx.beginPath(); ctx.arc(btnFire.x, btnFire.y, btnFire.r, 0, Math.PI * 2); ctx.fill();
         ctx.strokeStyle = "rgba(255, 210, 60, 0.7)"; ctx.lineWidth = 3; ctx.stroke();
