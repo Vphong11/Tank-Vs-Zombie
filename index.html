@@ -639,7 +639,6 @@
         if (gameState === "PLAYING") {
             player.move(keys);
 
-            // Bỏ đoạn tự động tìm zombie gần nhất. Nòng súng giờ đây tuân thủ hoàn toàn vị trí chuột/chạm tay thủ công.
             if ((mouse.pressed || btnFire.active) && now - player.lastShot > player.fireRate) {
                 let baseAngle = Math.atan2(mouse.y - player.y, mouse.x - player.x);
                 let spread = 0.15, numB = player.bulletCount;
@@ -746,11 +745,19 @@
             ctx.fillStyle = "rgb(255, 210, 60)"; ctx.font = "bold 16px Segoe UI"; ctx.textAlign = "left";
             ctx.fillText(playerGold, WIDTH - 55, 31);
 
-            ctx.fillStyle = "rgb(45, 240, 120)"; ctx.fillRect(WIDTH/2 - 140, HEIGHT/2 + 10, 280, 65);
+            // Nút BẮT ĐẦU CHƠI (Đã bo góc 12px)
+            ctx.fillStyle = "rgb(45, 240, 120)"; 
+            ctx.beginPath();
+            ctx.roundRect(WIDTH/2 - 140, HEIGHT/2 + 10, 280, 65, 12);
+            ctx.fill();
             ctx.fillStyle = "rgb(10, 10, 15)"; ctx.font = "bold 20px Segoe UI"; ctx.textAlign = "center";
             ctx.fillText("🚀 BẮT ĐẦU CHƠI", WIDTH/2, HEIGHT/2 + 50);
 
-            ctx.fillStyle = "rgb(255, 210, 60)"; ctx.fillRect(WIDTH/2 - 140, HEIGHT/2 + 90, 280, 55);
+            // Nút CỬA HÀNG VẬT PHẨM (Đã bo góc 12px)
+            ctx.fillStyle = "rgb(255, 210, 60)"; 
+            ctx.beginPath();
+            ctx.roundRect(WIDTH/2 - 140, HEIGHT/2 + 90, 280, 55, 12);
+            ctx.fill();
             ctx.fillStyle = "rgb(10, 10, 15)"; ctx.font = "bold 18px Segoe UI";
             ctx.fillText("🛒 CỬA HÀNG VẬT PHẨM", WIDTH/2, HEIGHT/2 + 124);
 
