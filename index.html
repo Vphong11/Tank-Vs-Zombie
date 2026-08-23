@@ -55,9 +55,6 @@
     let gameState = "MENU"; 
     let currentChoices = [];
 
-    // Check if the device has touch support (Mobile/Tablet)
-    const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-
     // On-screen Control Buttons Layout (D-Pad & Fire Button)
     const btnDpadUp = { x: 90, y: HEIGHT - 130, r: 35, active: false };
     const btnDpadDown = { x: 90, y: HEIGHT - 50, r: 35, active: false };
@@ -237,10 +234,10 @@
 
         move(keys) {
             let dx = 0, dy = 0;
-            if ((keys['w'] || (isTouchDevice && btnDpadUp.active)) && this.y > 30) dy -= 1;
-            if ((keys['s'] || (isTouchDevice && btnDpadDown.active)) && this.y < HEIGHT - 30) dy += 1;
-            if ((keys['a'] || (isTouchDevice && btnDpadLeft.active)) && this.x > 30) dx -= 1;
-            if ((keys['d'] || (isTouchDevice && btnDpadRight.active)) && this.x < WIDTH - 30) dx += 1;
+            if ((keys['w'] || btnDpadUp.active) && this.y > 30) dy -= 1;
+            if ((keys['s'] || btnDpadDown.active) && this.y < HEIGHT - 30) dy += 1;
+            if ((keys['a'] || btnDpadLeft.active) && this.x > 30) dx -= 1;
+            if ((keys['d'] || btnDpadRight.active) && this.x < WIDTH - 30) dx += 1;
 
             if (dx !== 0 || dy !== 0) {
                 let len = Math.hypot(dx, dy);
@@ -411,50 +408,30 @@
         mouse.y = e.clientY - rect.top;
     });
 
-    // --- SỬA LẠI HOÀN CHỈNH PHẦN CẢM ỨNG (DI CHUYỂN & NÚT BẮN) ---
-    function handleTouch(e) {
+    // Touch & Mouse Control Handlers for On-screen Buttons
+    function checkButtonPress(mx, my, isDown) {
+        if (Math.hypot(mx - btnDpadUp.x, my - btnDpadUp.y) <= btnDpadUp.r) btnDpadUp.active = isDown;
+        if (Math.hypot(mx - btnDpadDown.x, my - btnDpadDown.y) <= btnDpadDown.r) btnDpadDown.active = isDown;
+        if (Math.hypot(mx - btnDpadLeft.x, my - btnDpadLeft.y) <= btnDpadLeft.r) btnDpadLeft.active = isDown;
+        if (Math.hypot(mx - btnDpadRight.x, my - btnDpadRight.y) <= btnDpadRight.r) btnDpadRight.active = isDown;
+        if (Math.hypot(mx - btnFire.x, my - btnFire.y) <= btnFire.r) btnFire.active = isDown;
+    }
+
+    canvas.addEventListener('mousedown', e => {
+        let rect = canvas.getBoundingClientRect();
+        let mx = e.clientX - rect.left;
+        let my = e.clientY - rect.top;
+        checkButtonPress(mx, my, true);
+        if (Math.hypot(mx - btnFire.x, my - btnFire.y) > btnFire.r) mouse.pressed = true;
+    });
+
+    window.addEventListener('mouseup', () => {
         btnDpadUp.active = false;
         btnDpadDown.active = false;
         btnDpadLeft.active = false;
         btnDpadRight.active = false;
         btnFire.active = false;
-
-        if (!isTouchDevice) return;
-        let rect = canvas.getBoundingClientRect();
-
-        for (let i = 0; i < e.touches.length; i++) {
-            let mx = e.touches[i].clientX - rect.left;
-            let my = e.touches[i].clientY - rect.top;
-
-            if (Math.hypot(mx - btnDpadUp.x, my - btnDpadUp.y) <= btnDpadUp.r) btnDpadUp.active = true;
-            if (Math.hypot(mx - btnDpadDown.x, my - btnDpadDown.y) <= btnDpadDown.r) btnDpadDown.active = true;
-            if (Math.hypot(mx - btnDpadLeft.x, my - btnDpadLeft.y) <= btnDpadLeft.r) btnDpadLeft.active = true;
-            if (Math.hypot(mx - btnDpadRight.x, my - btnDpadRight.y) <= btnDpadRight.r) btnDpadRight.active = true;
-            if (Math.hypot(mx - btnFire.x, my - btnFire.y) <= btnFire.r) btnFire.active = true;
-        }
-    }
-
-    canvas.addEventListener('touchstart', e => {
-        handleTouch(e);
-        e.preventDefault();
-    }, { passive: false });
-
-    canvas.addEventListener('touchmove', e => {
-        handleTouch(e);
-        e.preventDefault();
-    }, { passive: false });
-
-    canvas.addEventListener('touchend', e => {
-        handleTouch(e);
-        e.preventDefault();
-    }, { passive: false });
-
-    canvas.addEventListener('mousedown', e => {
-        if (!isTouchDevice) mouse.pressed = true;
-    });
-
-    window.addEventListener('mouseup', () => {
-        if (!isTouchDevice) mouse.pressed = false;
+        mouse.pressed = false;
     });
 
     canvas.addEventListener('click', e => {
@@ -536,12 +513,13 @@
     }
 
     function drawOnScreenControls() {
-        if (!isTouchDevice) return;
         if (gameState !== "PLAYING" && gameState !== "LEVEL_UP") return;
 
+        // D-Pad Background
         ctx.fillStyle = "rgba(40, 40, 55, 0.4)";
         ctx.beginPath(); ctx.arc(90, HEIGHT - 90, 75, 0, Math.PI * 2); ctx.fill();
 
+        // D-Pad Buttons
         function drawPadBtn(btn, text) {
             ctx.fillStyle = btn.active ? "rgba(0, 245, 245, 0.6)" : "rgba(70, 70, 95, 0.6)";
             ctx.beginPath(); ctx.arc(btn.x, btn.y, btn.r, 0, Math.PI * 2); ctx.fill();
@@ -555,12 +533,13 @@
         drawPadBtn(btnDpadLeft, "◄");
         drawPadBtn(btnDpadRight, "►");
 
+        // Fire Button
         ctx.fillStyle = btnFire.active ? "rgba(255, 60, 60, 0.8)" : "rgba(180, 40, 40, 0.6)";
         ctx.beginPath(); ctx.arc(btnFire.x, btnFire.y, btnFire.r, 0, Math.PI * 2); ctx.fill();
         ctx.strokeStyle = "rgba(255, 210, 60, 0.6)"; ctx.lineWidth = 3; ctx.stroke();
         ctx.fillStyle = "white"; ctx.font = "bold 16px Segoe UI"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
         ctx.fillText("BẮN", btnFire.x, btnFire.y);
-        ctx.textBaseline = "alphabetic";
+        ctx.textBaseline = "alphabetic"; // Reset text baseline
     }
 
     function gameLoop() {
@@ -569,7 +548,8 @@
         if (gameState === "PLAYING") {
             player.move(keys);
 
-            if (isTouchDevice && btnFire.active && zombies.length > 0) {
+            // Auto aim nearest zombie if firing via on-screen button or mouse pressed
+            if (zombies.length > 0) {
                 let closestZ = zombies[0];
                 let minDist = Math.hypot(closestZ.x - player.x, closestZ.y - player.y);
                 for (let i = 1; i < zombies.length; i++) {
@@ -580,9 +560,7 @@
                 mouse.y = closestZ.y;
             }
 
-            let firingCondition = isTouchDevice ? (btnFire.active) : (mouse.pressed);
-
-            if (firingCondition && now - player.lastShot > player.fireRate) {
+            if ((mouse.pressed || btnFire.active) && now - player.lastShot > player.fireRate) {
                 let baseAngle = Math.atan2(mouse.y - player.y, mouse.x - player.x);
                 let spread = 0.15, numB = player.bulletCount;
                 let startAngle = baseAngle - (spread * (numB - 1) / 2);
