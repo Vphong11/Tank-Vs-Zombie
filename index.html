@@ -37,6 +37,9 @@
             background-color: #14141c;
             box-shadow: 0 0 30px rgba(0,0,0,0.8);
             border-radius: 8px;
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
         }
     </style>
 </head>
@@ -52,9 +55,8 @@
 
     // --- TỰ ĐỘNG CO GIÃN KHUNG HÌNH THEO MÀN HÌNH (RESPONSIVE CANVAS) ---
     function resizeGame() {
-        let container = document.getElementById("game-container");
-        let windowWidth = container.clientWidth;
-        let windowHeight = container.clientHeight;
+        let windowWidth = window.innerWidth;
+        let windowHeight = window.innerHeight;
         
         let gameWidth = 900;
         let gameHeight = 650;
