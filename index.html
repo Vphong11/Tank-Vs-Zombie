@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>2D Tank vs Zombies - Manual Aim Version</title>
+    <title>2D Tank vs Zombies - Fixed Aim Version</title>
     <style>
         * {
             box-sizing: border-box;
@@ -217,7 +217,7 @@
         constructor() {
             this.maxHp = 120;
             this.hp = 120;
-            this.gunAngle = 0; // Góc nòng súng lưu trữ độc lập, không tự thay đổi nếu chuột đứng yên
+            this.gunAngle = 0; // Mặc định hướng sang phải, KHÔNG tự động dò tìm zombie
             this.reset();
         }
 
@@ -438,17 +438,17 @@
     let player = new TankPlayer();
     let bullets = [], zombies = [], explosions = [], coins = [];
     let keys = {};
-    let mouse = { x: WIDTH / 2 + 100, y: HEIGHT / 2, pressed: false };
+    let mouse = { x: WIDTH / 2, y: HEIGHT / 2, pressed: false };
 
     window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
     window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
     
-    // Cập nhật hướng nòng súng hoàn toàn theo vị trí chuột di chuyển trên máy tính
+    // KHÓA: Nòng súng CHỈ XOAY KHI BẠN BẤM VÀ GIỮ CHUỘT TRÁI (hoặc kéo chuột)
     canvas.addEventListener('mousemove', e => {
         let pos = getCanvasMousePos(e);
         mouse.x = pos.x;
         mouse.y = pos.y;
-        if (gameState === "PLAYING") {
+        if (gameState === "PLAYING" && mouse.pressed) {
             player.gunAngle = Math.atan2(mouse.y - player.y, mouse.x - player.x);
         }
     });
@@ -464,7 +464,10 @@
     canvas.addEventListener('mousedown', e => {
         let pos = getCanvasMousePos(e);
         checkButtonPress(pos.x, pos.y, true);
-        if (Math.hypot(pos.x - btnFire.x, pos.y - btnFire.y) > btnFire.r) mouse.pressed = true;
+        if (Math.hypot(pos.x - btnFire.x, pos.y - btnFire.y) > btnFire.r) {
+            mouse.pressed = true;
+            player.gunAngle = Math.atan2(pos.y - player.y, pos.x - player.x);
+        }
     });
 
     canvas.addEventListener('touchstart', e => {
@@ -474,7 +477,6 @@
             checkButtonPress(pos.x, pos.y, true);
             if (Math.hypot(pos.x - btnFire.x, pos.y - btnFire.y) > btnFire.r) {
                 mouse.pressed = true;
-                // Trên màn hình cảm ứng, vuốt vùng trống sẽ xoay nòng súng
                 player.gunAngle = Math.atan2(pos.y - player.y, pos.x - player.x);
             }
         }
@@ -635,7 +637,6 @@
         if (gameState === "PLAYING") {
             player.move(keys);
 
-            // Bắn đạn dựa theo hướng nòng súng thủ công hiện tại
             if ((mouse.pressed || btnFire.active) && now - player.lastShot > player.fireRate) {
                 let baseAngle = player.gunAngle;
                 let spread = 0.15, numB = player.bulletCount;
