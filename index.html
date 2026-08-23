@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>2D Tank vs Zombies - Secured Admin</title>
+    <title>2D Tank vs Zombies - Secured Admin Fixed</title>
     <style>
         * {
             box-sizing: border-box;
@@ -67,10 +67,8 @@
     window.addEventListener('orientationchange', resizeGame);
     setTimeout(resizeGame, 50);
 
-    // Mật khẩu bảo vệ Admin (Bạn có thể sửa chữ "admin123" thành mật khẩu tùy ý)
     const ADMIN_SECRET_PASSWORD = "admin123";
 
-    // Khởi tạo thông số người chơi
     let playerGold = 500;
     let shopUpgrades = {
         "maxhp": 0, "dmg": 0, "spd": 0,
@@ -78,20 +76,26 @@
         "vampire": 0, "explosive": 0, "nova": 0
     };
 
-    if (localStorage.getItem('tank_gold') !== null) {
-        playerGold = parseInt(localStorage.getItem('tank_gold')) || 500;
-    }
-    if (localStorage.getItem('tank_upgrades') !== null) {
-        try {
-            shopUpgrades = JSON.parse(localStorage.getItem('tank_upgrades'));
-        } catch(e) {}
-    }
-
     const maxUpgradeLevels = {
         "maxhp": 5, "dmg": 3, "spd": 5,
         "multishot": 2, "pierce": 4, "rate": 4,
         "vampire": 2, "explosive": 1, "nova": 3
     };
+
+    // Load dữ liệu an toàn
+    if (localStorage.getItem('tank_gold') !== null) {
+        playerGold = parseInt(localStorage.getItem('tank_gold')) || 500;
+    }
+    if (localStorage.getItem('tank_upgrades') !== null) {
+        try {
+            let saved = JSON.parse(localStorage.getItem('tank_upgrades'));
+            for (let k in maxUpgradeLevels) {
+                if (saved[k] !== undefined) {
+                    shopUpgrades[k] = Math.min(saved[k], maxUpgradeLevels[k]);
+                }
+            }
+        } catch(e) {}
+    }
 
     function saveGame() {
         localStorage.setItem('tank_gold', playerGold);
@@ -117,7 +121,7 @@
     let zombiesSpawnedCount = 0;
     let spawnTimer = 0;
     let bossSpawnedInWave = false;
-    let gameState = "MENU"; // MENU, PLAYING, SHOP, ADMIN, LEVEL_UP, GAME_OVER
+    let gameState = "MENU"; 
     let currentChoices = [];
 
     const btnDpadUp = { x: 100, y: HEIGHT - 140, r: 42, active: false };
@@ -252,12 +256,12 @@
         }
 
         recalculateStats() {
-            this.speed = 3.5 + (shopUpgrades["spd"] * 0.4);
+            this.speed = 3.5 + ((shopUpgrades["spd"] || 0) * 0.4);
             let prevMax = this.maxHp;
-            this.maxHp = 120 + (shopUpgrades["maxhp"] * 30);
+            this.maxHp = 120 + ((shopUpgrades["maxhp"] || 0) * 30);
             this.hp += (this.maxHp - prevMax);
-            this.damage = 30 + (shopUpgrades["dmg"] * 10);
-            this.fireRate = Math.max(60, 300 - (shopUpgrades["rate"] * 30));
+            this.damage = 30 + ((shopUpgrades["dmg"] || 0) * 10);
+            this.fireRate = Math.max(60, 300 - ((shopUpgrades["rate"] || 0) * 30));
         }
 
         reset() {
@@ -267,10 +271,10 @@
             this.exp = 0;
             this.expToNextLevel = 100;
             this.lastShot = 0;
-            this.bulletCount = 1 + shopUpgrades["multishot"];
-            this.pierceCount = 1 + shopUpgrades["pierce"];
-            this.explosiveBullets = shopUpgrades["explosive"] > 0;
-            this.vampirism = shopUpgrades["vampire"] * 2;
+            this.bulletCount = 1 + (shopUpgrades["multishot"] || 0);
+            this.pierceCount = 1 + (shopUpgrades["pierce"] || 0);
+            this.explosiveBullets = (shopUpgrades["explosive"] || 0) > 0;
+            this.vampirism = (shopUpgrades["vampire"] || 0) * 2;
             this.recalculateStats();
             this.hp = this.maxHp;
         }
@@ -553,11 +557,9 @@
             if (mx >= WIDTH/2 - 140 && mx <= WIDTH/2 + 140 && my >= HEIGHT/2 - 10 && my <= HEIGHT/2 + 50) resetGame();
             else if (mx >= WIDTH/2 - 140 && mx <= WIDTH/2 + 140 && my >= HEIGHT/2 + 65 && my <= HEIGHT/2 + 120) gameState = "SHOP";
             else if (mx >= WIDTH/2 - 140 && mx <= WIDTH/2 + 140 && my >= HEIGHT/2 + 135 && my <= HEIGHT/2 + 185) {
-                // Chuyển sang màn hình nhập mật khẩu Admin
                 gameState = "ADMIN_LOGIN";
             }
         } else if (gameState === "ADMIN_LOGIN") {
-            // Nút Xác nhận mật khẩu
             if (mx >= WIDTH/2 - 110 && mx <= WIDTH/2 + 110 && my >= 270 && my <= 320) {
                 let enteredPass = prompt("Nhập mật khẩu quản trị (Mặc định: admin123):");
                 if (enteredPass === ADMIN_SECRET_PASSWORD) {
@@ -566,14 +568,13 @@
                     alert("Sai mật khẩu! Bạn không có quyền truy cập.");
                 }
             }
-            // Quay lại Menu
             else if (mx >= WIDTH/2 - 110 && mx <= WIDTH/2 + 110 && my >= HEIGHT - 65 && my <= HEIGHT - 20) {
                 gameState = "MENU";
             }
         } else if (gameState === "ADMIN") {
             if (mx >= WIDTH/2 - 180 && mx <= WIDTH/2 + 180 && my >= 130 && my <= 180) {
                 clearAllData();
-                alert("Đã xóa sạch bộ nhớ người chơi thành công!");
+                alert("Đã xóa sạch bộ nhớ và đưa cấp độ về 0 thành công!");
             }
             else if (mx >= WIDTH/2 - 180 && mx <= WIDTH/2 + 180 && my >= 195 && my <= 245) {
                 playerGold += 50000;
@@ -620,14 +621,14 @@
                 if (i === 8) { bx = WIDTH/2 - colWidth/2; by = startY + 5 * rowHeight; }
 
                 if (mx >= bx && mx <= bx + colWidth && my >= by && my <= by + 44) {
-                    let currentLvl = shopUpgrades[item.id];
+                    let currentLvl = shopUpgrades[item.id] || 0;
                     let maxLvl = maxUpgradeLevels[item.id];
                     
                     if (currentLvl < maxLvl) {
                         let cost = getUpgradeCost(item.id, currentLvl);
                         if (cost !== null && playerGold >= cost) {
                             playerGold -= cost;
-                            shopUpgrades[item.id] += 1;
+                            shopUpgrades[item.id] = currentLvl + 1;
                             player.reset();
                             saveGame();
                         }
@@ -916,7 +917,7 @@
 
                 drawSuperPolishedIcon(bx + 8, by + 1, item.id, isHover);
 
-                let lvl = shopUpgrades[item.id];
+                let lvl = shopUpgrades[item.id] || 0;
                 let maxLvl = maxUpgradeLevels[item.id];
                 
                 ctx.fillStyle = "white"; ctx.font = "bold 16px Segoe UI"; ctx.textAlign = "left";
@@ -943,7 +944,6 @@
             coins.forEach(c => c.draw());
             bullets.forEach(b => b.draw());
             zombies.forEach(z => z.draw(player.x, player.y));
-            explosions.items?.forEach(e => e.draw());
             explosions.forEach(e => e.draw());
 
             ctx.fillStyle = "white"; ctx.font = "bold 16px Segoe UI"; ctx.textAlign = "left";
