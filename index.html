@@ -2,6 +2,7 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>2D Tank vs Zombies - Web Version</title>
     <style>
         body {
@@ -16,6 +17,7 @@
             align-items: center;
             justify-content: center;
             height: 100vh;
+            touch-action: none;
         }
         canvas {
             background-color: #14141c;
@@ -433,6 +435,25 @@
         e.preventDefault();
         let rect = canvas.getBoundingClientRect();
         for (let touch of e.changedTouches) {
+            let mx = touch.clientX - rect.left;
+            let my = touch.clientY - rect.top;
+            checkButtonPress(mx, my, true);
+            if (Math.hypot(mx - btnFire.x, my - btnFire.y) > btnFire.r) mouse.pressed = true;
+        }
+    }, { passive: false });
+
+    canvas.addEventListener('touchmove', e => {
+        e.preventDefault();
+        let rect = canvas.getBoundingClientRect();
+        // Reset trạng thái các nút dpad và fire trước khi check lại theo danh sách touch đang hiển thị
+        btnDpadUp.active = false;
+        btnDpadDown.active = false;
+        btnDpadLeft.active = false;
+        btnDpadRight.active = false;
+        btnFire.active = false;
+        mouse.pressed = false;
+
+        for (let touch of e.touches) {
             let mx = touch.clientX - rect.left;
             let my = touch.clientY - rect.top;
             checkButtonPress(mx, my, true);
