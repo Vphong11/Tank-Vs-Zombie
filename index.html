@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>2D Tank vs Zombies - Fixed Aim Version</title>
+    <title>2D Tank vs Zombies - Fixed Audio & Click</title>
     <style>
         * {
             box-sizing: border-box;
@@ -51,6 +51,70 @@
 <script>
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
+
+    // --- HỆ THỐNG ÂM THANH (WEB AUDIO API) ---
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    let audioCtx = null;
+
+    function initAudio() {
+        if (!audioCtx) {
+            audioCtx = new AudioContext();
+        }
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+    }
+
+    function playShootSound() {
+        if (!audioCtx) return;
+        try {
+            let osc = audioCtx.createOscillator();
+            let gain = audioCtx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.15);
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.15);
+        } catch(e) {}
+    }
+
+    function playZombieDeathSound() {
+        if (!audioCtx) return;
+        try {
+            let osc = audioCtx.createOscillator();
+            let gain = audioCtx.createGain();
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(120, audioCtx.currentTime);
+            osc.frequency.linearRampToValueAtTime(40, audioCtx.currentTime + 0.1);
+            gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.1);
+        } catch(e) {}
+    }
+
+    function playTankDeathSound() {
+        if (!audioCtx) return;
+        try {
+            let osc = audioCtx.createOscillator();
+            let gain = audioCtx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(20, audioCtx.currentTime + 0.8);
+            gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.8);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.8);
+        } catch(e) {}
+    }
 
     function resizeGame() {
         let windowWidth = window.innerWidth;
@@ -105,11 +169,11 @@
 
     function getCanvasMousePos(e) {
         let rect = canvas.getBoundingClientRect();
-        let scaleX = canvas.width / rect.width;
-        let scaleY = canvas.height / rect.height;
+        let clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : (e.changedTouches && e.changedTouches[0] ? e.changedTouches[0].clientX : 0));
+        let clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : (e.changedTouches && e.changedTouches[0] ? e.changedTouches[0].clientY : 0));
         return {
-            x: (e.clientX - rect.left) * scaleX,
-            y: (e.clientY - rect.top) * scaleY
+            x: (clientX - rect.left) * (canvas.width / rect.width),
+            y: (clientY - rect.top) * (canvas.height / rect.height)
         };
     }
 
@@ -136,80 +200,44 @@
 
         ctx.fillStyle = "rgb(8, 8, 12)";
         ctx.beginPath(); ctx.roundRect(nx + 2, ny + 4, size, size, 10); ctx.fill();
-
         ctx.fillStyle = isHovered ? "rgb(48, 52, 75)" : "rgb(28, 30, 42)";
         ctx.beginPath(); ctx.roundRect(nx, ny, size, size, 10); ctx.fill();
-
         ctx.strokeStyle = isHovered ? "rgb(255, 210, 60)" : "rgb(110, 115, 140)";
         ctx.lineWidth = 2;
         ctx.beginPath(); ctx.roundRect(nx, ny, size, size, 10); ctx.stroke();
 
         let cx = nx + size / 2, cy = ny + size / 2;
-
         if (skillId === "maxhp") {
             ctx.fillStyle = "rgb(30, 100, 200)";
             ctx.beginPath(); ctx.moveTo(cx, cy - 14); ctx.lineTo(cx + 12, cy - 8); ctx.lineTo(cx + 10, cy + 6); ctx.lineTo(cx, cy + 14); ctx.lineTo(cx - 10, cy + 6); ctx.lineTo(cx - 12, cy - 8); ctx.fill();
             ctx.fillStyle = "rgb(80, 170, 255)";
             ctx.beginPath(); ctx.moveTo(cx, cy - 12); ctx.lineTo(cx + 10, cy - 7); ctx.lineTo(cx + 8, cy + 5); ctx.lineTo(cx, cy + 12); ctx.lineTo(cx - 8, cy + 5); ctx.lineTo(cx - 10, cy - 7); ctx.fill();
-            ctx.fillStyle = "rgb(255, 60, 60)";
-            ctx.beginPath(); ctx.arc(cx - 3, cy - 2, 3, 0, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.arc(cx + 3, cy - 2, 3, 0, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.moveTo(cx - 6, cy - 1); ctx.lineTo(cx + 6, cy - 1); ctx.lineTo(cx, cy + 6); ctx.fill();
         } else if (skillId === "dmg") {
             ctx.strokeStyle = "white"; ctx.lineWidth = 3;
             ctx.beginPath(); ctx.moveTo(cx - 11, cy + 11); ctx.lineTo(cx + 11, cy - 11); ctx.stroke();
-            ctx.strokeStyle = "rgb(0, 245, 245)"; ctx.lineWidth = 2;
-            ctx.beginPath(); ctx.moveTo(cx - 10, cy + 10); ctx.lineTo(cx + 10, cy - 10); ctx.stroke();
-            ctx.fillStyle = "rgb(255, 60, 60)";
-            ctx.beginPath(); ctx.moveTo(cx + 11, cy - 11); ctx.lineTo(cx + 7, cy - 12); ctx.lineTo(cx + 12, cy - 7); ctx.fill();
-            ctx.fillStyle = "rgb(255, 210, 60)"; ctx.fillRect(cx - 11, cy + 7, 5, 5);
         } else if (skillId === "spd") {
             ctx.fillStyle = "rgb(180, 180, 200)";
             ctx.beginPath(); ctx.moveTo(cx - 8, cy - 10); ctx.lineTo(cx + 10, cy - 4); ctx.lineTo(cx + 10, cy + 4); ctx.lineTo(cx - 8, cy + 10); ctx.fill();
-            ctx.fillStyle = "rgb(0, 245, 245)";
-            ctx.beginPath(); ctx.moveTo(cx + 10, cy - 5); ctx.lineTo(cx + 16, cy); ctx.lineTo(cx + 10, cy + 5); ctx.fill();
-            ctx.fillStyle = "rgb(255, 130, 20)";
-            ctx.beginPath(); ctx.moveTo(cx - 8, cy - 6); ctx.lineTo(cx - 15, cy); ctx.lineTo(cx - 8, cy + 6); ctx.fill();
         } else if (skillId === "multishot") {
             [-20, 0, 20].forEach(angle => {
                 let rad = angle * Math.PI / 180;
                 let ex = cx + Math.cos(rad) * 12, ey = cy + Math.sin(rad) * 12;
                 ctx.strokeStyle = "rgb(55, 55, 70)"; ctx.lineWidth = 4;
                 ctx.beginPath(); ctx.moveTo(cx - 6, cy); ctx.lineTo(ex, ey); ctx.stroke();
-                ctx.fillStyle = "rgb(255, 230, 60)";
-                ctx.beginPath(); ctx.arc(ex + Math.cos(rad)*4, ey + Math.sin(rad)*4, 3, 0, Math.PI*2); ctx.fill();
             });
         } else if (skillId === "pierce") {
             ctx.fillStyle = "rgb(180, 180, 190)"; ctx.fillRect(cx - 12, cy - 4, 16, 8);
-            ctx.fillStyle = "rgb(255, 60, 60)";
-            ctx.beginPath(); ctx.moveTo(cx + 4, cy - 6); ctx.lineTo(cx + 14, cy); ctx.lineTo(cx + 4, cy + 6); ctx.fill();
-            ctx.strokeStyle = "rgb(0, 245, 245)"; ctx.lineWidth = 3;
-            ctx.beginPath(); ctx.moveTo(cx - 14, cy); ctx.lineTo(cx - 10, cy); ctx.stroke();
         } else if (skillId === "rate") {
             ctx.strokeStyle = "rgb(40, 180, 100)"; ctx.lineWidth = 3;
             ctx.beginPath(); ctx.arc(cx, cy, 12, 0, Math.PI*2); ctx.stroke();
-            ctx.strokeStyle = "white"; ctx.lineWidth = 2;
-            ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + 6, cy - 6); ctx.stroke();
         } else if (skillId === "vampire") {
             ctx.fillStyle = "rgb(120, 10, 10)";
             ctx.beginPath(); ctx.arc(cx, cy + 2, 8, 0, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.moveTo(cx - 8, cy + 2); ctx.lineTo(cx + 8, cy + 2); ctx.lineTo(cx, cy - 10); ctx.fill();
-            ctx.fillStyle = "rgb(255, 60, 60)";
-            ctx.beginPath(); ctx.arc(cx, cy + 2, 6, 0, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.moveTo(cx - 6, cy + 2); ctx.lineTo(cx + 6, cy + 2); ctx.lineTo(cx, cy - 8); ctx.fill();
-            ctx.fillStyle = "white"; ctx.beginPath(); ctx.arc(cx - 2, cy - 1, 2, 0, Math.PI*2); ctx.fill();
         } else if (skillId === "explosive") {
             ctx.fillStyle = "rgb(20, 20, 20)"; ctx.beginPath(); ctx.arc(cx - 2, cy + 2, 9, 0, Math.PI*2); ctx.fill();
-            ctx.fillStyle = "rgb(60, 60, 65)"; ctx.beginPath(); ctx.arc(cx - 2, cy + 2, 7, 0, Math.PI*2); ctx.fill();
-            ctx.strokeStyle = "rgb(255, 210, 60)"; ctx.lineWidth = 2;
-            ctx.beginPath(); ctx.moveTo(cx, cy - 5); ctx.lineTo(cx + 6, cy - 11); ctx.stroke();
-            ctx.fillStyle = "rgb(255, 60, 60)"; ctx.beginPath(); ctx.arc(cx + 7, cy - 12, 3, 0, Math.PI*2); ctx.fill();
         } else if (skillId === "nova") {
             ctx.strokeStyle = "rgb(190, 90, 255)"; ctx.lineWidth = 2;
             ctx.beginPath(); ctx.arc(cx, cy, 12, 0, Math.PI*2); ctx.stroke();
-            ctx.strokeStyle = "rgb(0, 245, 245)";
-            ctx.beginPath(); ctx.arc(cx, cy, 7, 0, Math.PI*2); ctx.stroke();
-            ctx.fillStyle = "white"; ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI*2); ctx.fill();
         }
     }
 
@@ -217,7 +245,7 @@
         constructor() {
             this.maxHp = 120;
             this.hp = 120;
-            this.gunAngle = 0; // Mặc định hướng sang phải, KHÔNG tự động dò tìm zombie
+            this.gunAngle = 0;
             this.reset();
         }
 
@@ -247,7 +275,6 @@
 
         draw() {
             let px = Math.floor(this.x), py = Math.floor(this.y);
-
             ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
             ctx.beginPath(); ctx.ellipse(px, py, 30, 25, 0, 0, Math.PI * 2); ctx.fill();
 
@@ -367,25 +394,8 @@
             let p2x = ix + cosA * 2 + sinA * shoulderW, p2y = iy + sinA * 2 - cosA * shoulderW;
             ctx.beginPath(); ctx.moveTo(p1x, p1y); ctx.lineTo(p2x, p2y); ctx.stroke();
 
-            ctx.strokeStyle = this.skinColor;
-            ctx.lineWidth = 4;
-            let armLen = this.radius * 1.5;
-            ctx.beginPath(); ctx.moveTo(p1x, p1y); ctx.lineTo(p1x + cosA * armLen, p1y + sinA * armLen); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(p2x, p2y); ctx.lineTo(p2x + cosA * armLen, p2y + sinA * armLen); ctx.stroke();
-
-            let headX = ix + cosA * 4, headY = iy + sinA * 4;
             ctx.fillStyle = this.skinColor;
-            ctx.beginPath(); ctx.arc(headX, headY, this.radius * 0.75, 0, Math.PI * 2); ctx.fill();
-            ctx.strokeStyle = "rgb(10, 10, 15)"; ctx.lineWidth = 2;
-            ctx.beginPath(); ctx.arc(headX, headY, this.radius * 0.75, 0, Math.PI * 2); ctx.stroke();
-
-            if (this.hp < this.maxHp) {
-                let barW = this.radius * 2.2;
-                ctx.fillStyle = "rgb(15, 15, 20)";
-                ctx.fillRect(ix - barW / 2, iy - this.radius - 12, barW, 4);
-                ctx.fillStyle = "rgb(45, 240, 120)";
-                ctx.fillRect(ix - barW / 2, iy - this.radius - 12, Math.max(0, barW * (this.hp / this.maxHp)), 4);
-            }
+            ctx.beginPath(); ctx.arc(ix + cosA * 4, iy + sinA * 4, this.radius * 0.75, 0, Math.PI * 2); ctx.fill();
         }
     }
 
@@ -406,8 +416,6 @@
             ctx.globalAlpha = Math.max(0, this.alpha / 255);
             ctx.fillStyle = "rgb(255, 140, 20)";
             ctx.beginPath(); ctx.arc(this.x, this.y, this.currentRadius, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = "rgb(255, 240, 150)";
-            ctx.beginPath(); ctx.arc(this.x, this.y, this.currentRadius * 0.4, 0, Math.PI * 2); ctx.fill();
             ctx.restore();
         }
     }
@@ -440,10 +448,12 @@
     let keys = {};
     let mouse = { x: WIDTH / 2, y: HEIGHT / 2, pressed: false };
 
-    window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
+    window.addEventListener('keydown', e => {
+        initAudio();
+        keys[e.key.toLowerCase()] = true;
+    });
     window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
     
-    // KHÓA: Nòng súng CHỈ XOAY KHI BẠN BẤM VÀ GIỮ CHUỘT TRÁI (hoặc kéo chuột)
     canvas.addEventListener('mousemove', e => {
         let pos = getCanvasMousePos(e);
         mouse.x = pos.x;
@@ -461,83 +471,24 @@
         if (Math.hypot(mx - btnFire.x, my - btnFire.y) <= btnFire.r) btnFire.active = isDown;
     }
 
-    canvas.addEventListener('mousedown', e => {
-        let pos = getCanvasMousePos(e);
-        checkButtonPress(pos.x, pos.y, true);
-        if (Math.hypot(pos.x - btnFire.x, pos.y - btnFire.y) > btnFire.r) {
-            mouse.pressed = true;
-            player.gunAngle = Math.atan2(pos.y - player.y, pos.x - player.x);
-        }
-    });
-
-    canvas.addEventListener('touchstart', e => {
-        e.preventDefault();
-        for (let touch of e.changedTouches) {
-            let pos = getCanvasMousePos(touch);
-            checkButtonPress(pos.x, pos.y, true);
-            if (Math.hypot(pos.x - btnFire.x, pos.y - btnFire.y) > btnFire.r) {
-                mouse.pressed = true;
-                player.gunAngle = Math.atan2(pos.y - player.y, pos.x - player.x);
-            }
-        }
-    }, { passive: false });
-
-    canvas.addEventListener('touchmove', e => {
-        e.preventDefault();
-        btnDpadUp.active = false;
-        btnDpadDown.active = false;
-        btnDpadLeft.active = false;
-        btnDpadRight.active = false;
-        btnFire.active = false;
-        mouse.pressed = false;
-
-        for (let touch of e.touches) {
-            let pos = getCanvasMousePos(touch);
-            checkButtonPress(pos.x, pos.y, true);
-            if (Math.hypot(pos.x - btnFire.x, pos.y - btnFire.y) > btnFire.r) {
-                mouse.pressed = true;
-                player.gunAngle = Math.atan2(pos.y - player.y, pos.x - player.x);
-            }
-        }
-    }, { passive: false });
-
-    canvas.addEventListener('touchend', e => {
-        e.preventDefault();
-        btnDpadUp.active = false;
-        btnDpadDown.active = false;
-        btnDpadLeft.active = false;
-        btnDpadRight.active = false;
-        btnFire.active = false;
-        mouse.pressed = false;
-    });
-
-    window.addEventListener('mouseup', () => {
-        btnDpadUp.active = false;
-        btnDpadDown.active = false;
-        btnDpadLeft.active = false;
-        btnDpadRight.active = false;
-        btnFire.active = false;
-        mouse.pressed = false;
-    });
-
-    function handleScreenClick(clientX, clientY) {
-        let rect = canvas.getBoundingClientRect();
-        let scaleX = canvas.width / rect.width;
-        let scaleY = canvas.height / rect.height;
-        let mx = (clientX - rect.left) * scaleX;
-        let my = (clientY - rect.top) * scaleY;
+    // --- HỆ THỐNG XỬ LÝ CLICK / CHẠM CHUẨN XÁC ---
+    function handleScreenClick(mx, my) {
+        initAudio();
 
         if (gameState === "MENU") {
-            if (mx >= WIDTH/2 - 140 && mx <= WIDTH/2 + 140 && my >= HEIGHT/2 + 10 && my <= HEIGHT/2 + 75) resetGame();
-            else if (mx >= WIDTH/2 - 140 && mx <= WIDTH/2 + 140 && my >= HEIGHT/2 + 90 && my <= HEIGHT/2 + 145) gameState = "SHOP";
+            if (mx >= WIDTH/2 - 140 && mx <= WIDTH/2 + 140 && my >= HEIGHT/2 + 10 && my <= HEIGHT/2 + 75) {
+                resetGame();
+            } else if (mx >= WIDTH/2 - 140 && mx <= WIDTH/2 + 140 && my >= HEIGHT/2 + 90 && my <= HEIGHT/2 + 145) {
+                gameState = "SHOP";
+            }
         } else if (gameState === "SHOP") {
             if (mx >= WIDTH/2 - 110 && mx <= WIDTH/2 + 110 && my >= HEIGHT - 55 && my <= HEIGHT - 15) {
                 gameState = "MENU";
+                return;
             }
             
             let colWidth = 420, rowHeight = 50;
             let startX1 = WIDTH/2 - 430, startX2 = WIDTH/2 + 10, startY = 90;
-
             let itemsList = [
                 {id: "maxhp", base: 50}, {id: "dmg", base: 70}, {id: "spd", base: 60},
                 {id: "multishot", base: 120}, {id: "pierce", base: 90}, {id: "rate", base: 80},
@@ -579,7 +530,56 @@
     }
 
     canvas.addEventListener('click', e => {
-        handleScreenClick(e.clientX, e.clientY);
+        let pos = getCanvasMousePos(e);
+        handleScreenClick(pos.x, pos.y);
+    });
+
+    canvas.addEventListener('mousedown', e => {
+        initAudio();
+        let pos = getCanvasMousePos(e);
+        checkButtonPress(pos.x, pos.y, true);
+        if (gameState === "PLAYING" && Math.hypot(pos.x - btnFire.x, pos.y - btnFire.y) > btnFire.r) {
+            mouse.pressed = true;
+            player.gunAngle = Math.atan2(pos.y - player.y, pos.x - player.x);
+        }
+    });
+
+    canvas.addEventListener('touchstart', e => {
+        e.preventDefault();
+        initAudio();
+        for (let touch of e.changedTouches) {
+            let pos = getCanvasMousePos(touch);
+            checkButtonPress(pos.x, pos.y, true);
+            if (gameState === "PLAYING" && Math.hypot(pos.x - btnFire.x, pos.y - btnFire.y) > btnFire.r) {
+                mouse.pressed = true;
+                player.gunAngle = Math.atan2(pos.y - player.y, pos.x - player.x);
+            }
+        }
+    }, { passive: false });
+
+    canvas.addEventListener('touchend', e => {
+        e.preventDefault();
+        if (e.changedTouches.length > 0) {
+            let pos = getCanvasMousePos(e.changedTouches[0]);
+            if (gameState !== "PLAYING") {
+                handleScreenClick(pos.x, pos.y);
+            }
+        }
+        btnDpadUp.active = false;
+        btnDpadDown.active = false;
+        btnDpadLeft.active = false;
+        btnDpadRight.active = false;
+        btnFire.active = false;
+        mouse.pressed = false;
+    });
+
+    window.addEventListener('mouseup', () => {
+        btnDpadUp.active = false;
+        btnDpadDown.active = false;
+        btnDpadLeft.active = false;
+        btnDpadRight.active = false;
+        btnFire.active = false;
+        mouse.pressed = false;
     });
 
     function resetGame() {
@@ -606,7 +606,6 @@
 
     function drawOnScreenControls() {
         if (gameState !== "PLAYING" && gameState !== "LEVEL_UP") return;
-
         ctx.fillStyle = "rgba(40, 40, 55, 0.4)";
         ctx.beginPath(); ctx.arc(100, HEIGHT - 95, 85, 0, Math.PI * 2); ctx.fill();
 
@@ -638,6 +637,7 @@
             player.move(keys);
 
             if ((mouse.pressed || btnFire.active) && now - player.lastShot > player.fireRate) {
+                playShootSound();
                 let baseAngle = player.gunAngle;
                 let spread = 0.15, numB = player.bulletCount;
                 let startAngle = baseAngle - (spread * (numB - 1) / 2);
@@ -687,7 +687,10 @@
 
                 if (Math.hypot(z.x - player.x, z.y - player.y) < z.radius + 16) {
                     player.hp -= z.damage;
-                    if (player.hp <= 0) gameState = "GAME_OVER";
+                    if (player.hp <= 0) {
+                        playTankDeathSound();
+                        gameState = "GAME_OVER";
+                    }
                 }
 
                 for (let j = bullets.length - 1; j >= 0; j--) {
@@ -703,6 +706,7 @@
                         if (b.pierce <= 0) bullets.splice(j, 1);
 
                         if (z.hp <= 0) {
+                            playZombieDeathSound();
                             coins.push(new Coin(z.x, z.y, z.goldDrop));
                             if (player.vampirism > 0) player.hp = Math.min(player.maxHp, player.hp + player.vampirism);
                             zombies.splice(i, 1);
@@ -728,7 +732,6 @@
         bgDecorations.forEach(deco => {
             if (deco.type === "crater") {
                 ctx.fillStyle = "rgb(14, 14, 20)"; ctx.beginPath(); ctx.arc(deco.x, deco.y, deco.size, 0, Math.PI*2); ctx.fill();
-                ctx.strokeStyle = "rgb(28, 28, 38)"; ctx.lineWidth = 2; ctx.stroke();
             } else if (deco.type === "rock") {
                 ctx.fillStyle = "rgb(32, 32, 44)"; ctx.beginPath(); ctx.ellipse(deco.x, deco.y, deco.size/2, deco.size/4, 0, 0, Math.PI*2); ctx.fill();
             }
@@ -743,10 +746,12 @@
             ctx.fillStyle = "rgb(255, 210, 60)"; ctx.font = "bold 16px Segoe UI"; ctx.textAlign = "left";
             ctx.fillText(playerGold, WIDTH - 55, 31);
 
+            // Nút Bắt đầu chơi
             ctx.fillStyle = "rgb(45, 240, 120)"; ctx.fillRect(WIDTH/2 - 140, HEIGHT/2 + 10, 280, 65);
             ctx.fillStyle = "rgb(10, 10, 15)"; ctx.font = "bold 20px Segoe UI"; ctx.textAlign = "center";
             ctx.fillText("🚀 BẮT ĐẦU CHƠI", WIDTH/2, HEIGHT/2 + 50);
 
+            // Nút Cửa hàng
             ctx.fillStyle = "rgb(255, 210, 60)"; ctx.fillRect(WIDTH/2 - 140, HEIGHT/2 + 90, 280, 55);
             ctx.fillStyle = "rgb(10, 10, 15)"; ctx.font = "bold 18px Segoe UI";
             ctx.fillText("🛒 CỬA HÀNG VẬT PHẨM", WIDTH/2, HEIGHT/2 + 124);
@@ -783,7 +788,6 @@
                 if (i === 8) { bx = WIDTH/2 - colWidth/2; by = startY + 5 * rowHeight; }
 
                 let isHover = mouse.x >= bx && mouse.x <= bx + colWidth && mouse.y >= by && mouse.y <= by + 44;
-
                 ctx.fillStyle = isHover ? "rgb(60, 65, 95)" : "rgb(32, 32, 48)"; 
                 ctx.fillRect(bx, by, colWidth, 44);
                 ctx.strokeStyle = isHover ? "rgb(255, 210, 60)" : "rgb(85, 85, 110)"; 
@@ -848,14 +852,12 @@
             currentChoices.forEach((choice, i) => {
                 let bx = WIDTH/2 - 200, by = 180 + i * 85;
                 let isHover = mouse.x >= bx && mouse.x <= bx + 400 && mouse.y >= by && mouse.y <= by + 65;
-                
                 ctx.fillStyle = isHover ? "rgb(60, 65, 92)" : "rgb(32, 32, 45)"; 
                 ctx.fillRect(bx, by, 400, 65);
                 ctx.strokeStyle = isHover ? "rgb(255, 210, 60)" : "rgb(85, 85, 110)"; 
                 ctx.lineWidth = 2; ctx.strokeRect(bx, by, 400, 65);
                 
                 drawSuperPolishedIcon(bx + 12, by + 11, choice.id, isHover);
-
                 ctx.fillStyle = "white"; ctx.font = "bold 18px Segoe UI"; ctx.textAlign = "left";
                 ctx.fillText(choice.text, bx + 68, by + 38);
             });
