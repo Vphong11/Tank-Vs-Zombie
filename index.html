@@ -76,6 +76,19 @@
         "vampire": 0, "explosive": 0, "nova": 0
     };
 
+    // Bảng giới hạn cấp độ tối đa cho từng kỹ năng
+    const maxUpgradeLevels = {
+        "maxhp": 5,
+        "dmg": 3,
+        "spd": 5,
+        "multishot": 2,
+        "pierce": 4,
+        "rate": 4,
+        "vampire": 2,
+        "explosive": 1,
+        "nova": 3
+    };
+
     function saveGame() {
         localStorage.setItem('tank_gold', playerGold);
         localStorage.setItem('tank_upgrades', JSON.stringify(shopUpgrades));
@@ -228,7 +241,7 @@
             let prevMax = this.maxHp;
             this.maxHp = 120 + (shopUpgrades["maxhp"] * 30);
             this.hp += (this.maxHp - prevMax);
-            this.damage = 30 + (shopUpgrades["dmg"] * 8);
+            this.damage = 30 + (shopUpgrades["dmg"] * 10); // Mỗi cấp cộng thêm 10 sát thương
             this.fireRate = Math.max(60, 300 - (shopUpgrades["rate"] * 30));
         }
 
@@ -432,7 +445,7 @@
         {"id": "explosive", "text": "Đạn Pháo Nổ Diện Rộng"},
         {"id": "vampire", "text": "Hút Máu Khi Diệt Quái"},
         {"id": "nova", "text": "Sóng Nổ Quét Bản Đồ"},
-        {"id": "dmg", "text": "+20% Sát Thương Pháo"},
+        {"id": "dmg", "text": "+10 Sát Thương Pháo"},
         {"id": "spd", "text": "+15% Tốc Độ Động Cơ"},
         {"id": "rate", "text": "+20% Tốc Độ Bắn"},
         {"id": "maxhp", "text": "+25% Máu Tối Đa"}
@@ -510,6 +523,39 @@
         mouse.pressed = false;
     });
 
+    // Hàm trả về giá tiền tương ứng theo từng cấp độ và từng loại trang bị
+    function getUpgradeCost(itemId, currentLevel) {
+        if (itemId === "maxhp") {
+            const costs = [50, 125, 300, 1000, 3000];
+            return costs[currentLevel] || null;
+        } else if (itemId === "dmg") {
+            const costs = [300, 800, 1700];
+            return costs[currentLevel] || null;
+        } else if (itemId === "spd") {
+            const costs = [100, 200, 300, 400, 500];
+            return costs[currentLevel] || null;
+        } else if (itemId === "multishot") {
+            const costs = [5000, 12000];
+            return costs[currentLevel] || null;
+        } else if (itemId === "pierce") {
+            const costs = [150, 500, 1000, 1900];
+            return costs[currentLevel] || null;
+        } else if (itemId === "rate") {
+            const costs = [300, 1000, 2000, 3500];
+            return costs[currentLevel] || null;
+        } else if (itemId === "vampire") {
+            const costs = [10000, 20000];
+            return costs[currentLevel] || null;
+        } else if (itemId === "explosive") {
+            const costs = [5000];
+            return costs[currentLevel] || null;
+        } else if (itemId === "nova") {
+            const costs = [5000, 10000, 15000];
+            return costs[currentLevel] || null;
+        }
+        return 0;
+    }
+
     function handleScreenClick(clientX, clientY) {
         let rect = canvas.getBoundingClientRect();
         let scaleX = canvas.width / rect.width;
@@ -529,9 +575,9 @@
             let startX1 = WIDTH/2 - 430, startX2 = WIDTH/2 + 10, startY = 90;
 
             let itemsList = [
-                {id: "maxhp", base: 50}, {id: "dmg", base: 70}, {id: "spd", base: 60},
-                {id: "multishot", base: 120}, {id: "pierce", base: 90}, {id: "rate", base: 80},
-                {id: "vampire", base: 150}, {id: "explosive", base: 200}, {id: "nova", base: 250}
+                {id: "maxhp"}, {id: "dmg"}, {id: "spd"},
+                {id: "multishot"}, {id: "pierce"}, {id: "rate"},
+                {id: "vampire"}, {id: "explosive"}, {id: "nova"}
             ];
 
             itemsList.forEach((item, i) => {
@@ -542,12 +588,17 @@
                 if (i === 8) { bx = WIDTH/2 - colWidth/2; by = startY + 5 * rowHeight; }
 
                 if (mx >= bx && mx <= bx + colWidth && my >= by && my <= by + 44) {
-                    let cost = item.base + (shopUpgrades[item.id] * 30);
-                    if (playerGold >= cost) {
-                        playerGold -= cost;
-                        shopUpgrades[item.id] += 1;
-                        player.reset();
-                        saveGame();
+                    let currentLvl = shopUpgrades[item.id];
+                    let maxLvl = maxUpgradeLevels[item.id];
+                    
+                    if (currentLvl < maxLvl) {
+                        let cost = getUpgradeCost(item.id, currentLvl);
+                        if (cost !== null && playerGold >= cost) {
+                            playerGold -= cost;
+                            shopUpgrades[item.id] += 1;
+                            player.reset();
+                            saveGame();
+                        }
                     }
                 }
             });
@@ -595,7 +646,7 @@
             explosions.push(new Explosion(player.x, player.y, 220));
             zombies.forEach(z => { if (Math.hypot(z.x - player.x, z.y - player.y) < 220) z.hp -= 70; });
         }
-        else if (upgradeId === "dmg") player.damage *= 1.2;
+        else if (upgradeId === "dmg") player.damage += 10;
         else if (upgradeId === "spd") player.speed *= 1.15;
         else if (upgradeId === "rate") player.fireRate = Math.max(60, player.fireRate * 0.8);
         else if (upgradeId === "maxhp") { player.maxHp *= 1.25; player.hp += player.maxHp * 0.25; }
@@ -633,8 +684,6 @@
 
         if (gameState === "PLAYING") {
             player.move(keys);
-
-            // ĐÃ XÓA KHỐI CODE TỰ ĐỘNG AIM THEO ZOMBIE Ở ĐÂY
 
             if ((mouse.pressed || btnFire.active) && now - player.lastShot > player.fireRate) {
                 let baseAngle = Math.atan2(mouse.y - player.y, mouse.x - player.x);
@@ -760,15 +809,15 @@
             ctx.fillText(playerGold, WIDTH - 55, 31);
 
             let shopItems = [
-                {id: "maxhp", name: "Tăng Máu Tối Đa", base: 50},
-                {id: "dmg", name: "Tăng Sát Thương", base: 70},
-                {id: "spd", name: "Tốc Độ Di Chuyển", base: 60},
-                {id: "multishot", name: "Pháo Đa Nòng", base: 120},
-                {id: "pierce", name: "Đạn Xuyên Thấu", base: 90},
-                {id: "rate", name: "Tốc Độ Bắn Nhanh", base: 80},
-                {id: "vampire", name: "Trang Bị Hút Máu", base: 150},
-                {id: "explosive", name: "Đạn Pháo Nổ", base: 200},
-                {id: "nova", name: "Sóng Nổ Kích Hoạt", base: 250},
+                {id: "maxhp", name: "Tăng Máu Tối Đa"},
+                {id: "dmg", name: "Tăng Sát Thương"},
+                {id: "spd", name: "Tốc Độ Di Chuyển"},
+                {id: "multishot", name: "Pháo Đa Nòng"},
+                {id: "pierce", name: "Đạn Xuyên Thấu"},
+                {id: "rate", name: "Tốc Độ Bắn Nhanh"},
+                {id: "vampire", name: "Trang Bị Hút Máu"},
+                {id: "explosive", name: "Đạn Pháo Nổ"},
+                {id: "nova", name: "Sóng Nổ Kích Hoạt"},
             ];
 
             let colWidth = 420, rowHeight = 50;
@@ -791,13 +840,20 @@
                 drawSuperPolishedIcon(bx + 8, by + 1, item.id, isHover);
 
                 let lvl = shopUpgrades[item.id];
+                let maxLvl = maxUpgradeLevels[item.id];
+                
                 ctx.fillStyle = "white"; ctx.font = "bold 16px Segoe UI"; ctx.textAlign = "left";
-                ctx.fillText(`${item.name} [LV ${lvl}]`, bx + 58, by + 22);
+                ctx.fillText(`${item.name} [LV ${lvl}/${maxLvl}]`, bx + 58, by + 22);
 
-                let cost = item.base + (lvl * 30);
-                ctx.fillStyle = "rgb(255, 210, 60)";
-                ctx.fillText(`Giá: ${cost}`, bx + 58, by + 38);
-                drawCoinIcon(bx + 58 + ctx.measureText(`Giá: ${cost}`).width + 12, by + 33, 7);
+                if (lvl < maxLvl) {
+                    let cost = getUpgradeCost(item.id, lvl);
+                    ctx.fillStyle = "rgb(255, 210, 60)";
+                    ctx.fillText(`Giá: ${cost}`, bx + 58, by + 38);
+                    drawCoinIcon(bx + 58 + ctx.measureText(`Giá: ${cost}`).width + 12, by + 33, 7);
+                } else {
+                    ctx.fillStyle = "rgb(45, 240, 120)";
+                    ctx.fillText(`ĐÃ ĐẠT TỐI ĐA`, bx + 58, by + 38);
+                }
             });
 
             ctx.fillStyle = "rgb(55, 55, 70)"; ctx.fillRect(WIDTH/2 - 110, HEIGHT - 55, 220, 40);
